@@ -1,5 +1,6 @@
 import {
   collection,
+  deleteDoc,
   doc,
   getDoc,
   getDocs,
@@ -15,6 +16,10 @@ export async function saveUserProfile(
   await setDoc(doc(firestoreDatabase, "users", userId), profile, {
     merge: true,
   });
+}
+
+export async function deleteUserProfile(userId: string) {
+  await deleteDoc(doc(firestoreDatabase, "users", userId));
 }
 
 export async function fetchUserProfile<T>(userId: string, fallback: T) {
@@ -36,6 +41,6 @@ export async function fetchFirestoreUsers() {
     })) as AdminUser[];
   } catch (error) {
     console.error("Firestore users read failed", error);
-    return [];
+    throw error;
   }
 }

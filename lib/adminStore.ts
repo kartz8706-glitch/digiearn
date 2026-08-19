@@ -1,6 +1,6 @@
 import { adjustBalance, readBalance } from "@/lib/investmentStore";
 import { mirrorToDatabase } from "@/lib/firebaseData";
-import { saveUserProfile } from "@/lib/firestoreData";
+import { deleteUserProfile, saveUserProfile } from "@/lib/firestoreData";
 
 export type AdminUser = {
   id: string;
@@ -109,6 +109,23 @@ export function updateAdminUserStatus(id: string, status: AdminUser["status"]) {
     readAdminUsers().map((user) => (user.id === id ? { ...user, status } : user))
   );
   void saveUserProfile(id, { status });
+}
+
+export function updateAdminUserBalance(id: string, balance: number) {
+  void saveUserProfile(id, { balance });
+  window.dispatchEvent(new Event(adminStateEvent));
+}
+
+export function deleteAdminUser(id: string) {
+  void deleteUserProfile(id);
+  window.dispatchEvent(new Event(adminStateEvent));
+}
+
+export function deleteAdminInvestment(id: string, investments: AdminInvestment[]) {
+  write(
+    investmentsKey,
+    investments.filter((investment) => investment.id !== id)
+  );
 }
 
 export function updateRequestStatus(id: string, status: AdminRequest["status"]) {
