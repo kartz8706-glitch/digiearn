@@ -9,6 +9,7 @@ import {
   Check,
   LayoutDashboard,
   Mail,
+  Trash2,
   Plus,
   ShieldCheck,
   TrendingUp,
@@ -20,7 +21,10 @@ import {
   addAdminInvestment,
   addAdminUser,
   adminStateEvent,
+  deleteAdminInvestment,
+  deleteAdminUser,
   formatAdminUgx,
+  updateAdminUserBalance,
   updateAdminUserStatus,
   updateRequestStatus,
   type AdminInvestment,
@@ -40,8 +44,14 @@ export default function AdminDashboard() {
   const [investments, setInvestments] = useState<AdminInvestment[]>([]);
   const [requests, setRequests] = useState<AdminRequest[]>([]);
   const [adminName, setAdminName] = useState("Administrator");
+  const [usersLoading, setUsersLoading] = useState(true);
+  const [usersError, setUsersError] = useState("");
 
   const refresh = async () => {
+    if (!firebaseAuth.currentUser) return;
+
+    setUsersLoading(true);
+    setUsersError("");
     const [firebaseInvestments, firebaseRequests] = await Promise.all([
       fetchFromDatabase<AdminInvestment[] | Record<string, AdminInvestment>>("admin/investments", []),
       fetchFromDatabase<AdminRequest[] | Record<string, AdminRequest>>("admin/requests", []),
@@ -50,13 +60,18 @@ export default function AdminDashboard() {
     const toArray = <T,>(value: T[] | Record<string, T>) =>
       Array.isArray(value) ? value : Object.values(value);
 
-    setUsers(await fetchFirestoreUsers());
+    try {
+      setUsers(await fetchFirestoreUsers());
+    } catch {
+      setUsersError("Unable to fetch users from Firebase Firestore.");
+    } finally {
+      setUsersLoading(false);
+    }
     setInvestments(toArray(firebaseInvestments));
     setRequests(toArray(firebaseRequests));
   };
 
   useEffect(() => {
-    refresh();
     window.addEventListener(adminStateEvent, refresh);
     return () => window.removeEventListener(adminStateEvent, refresh);
   }, []);
@@ -69,6 +84,7 @@ export default function AdminDashboard() {
         null
       );
       setAdminName(profile?.name || user.displayName || "Administrator");
+      await refresh();
     });
   }, []);
 
@@ -119,10 +135,10 @@ export default function AdminDashboard() {
           </div>
 
           {tab === "overview" && <Overview users={users} investments={investments} requests={requests} setTab={setTab} />}
-          {tab === "users" && <UsersPanel users={users} />}
+          {tab === "users" && <UsersPanel users={users} loading={usersLoading} error={usersError} />}
           {tab === "investments" && <InvestmentsPanel investments={investments} />}
           {tab === "requests" && <RequestsPanel requests={requests} />}
-          {tab === "messages" && <MessagesPanel />}
+          {tab === "messages" && <MessagesPanel users={users} />}
         </div>
       </main>
     </div>
@@ -148,9 +164,11 @@ function Overview({ users, investments, requests, setTab }: { users: AdminUser[]
   </>;
 }
 
-function UsersPanel({ users }: { users: AdminUser[] }) {
+function UsersPanel({ users, loading, error }: { users: AdminUser[]; loading: boolean; error: string }) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [editingBalance, setEditingBalance] = useState<string | null>(null);
+  const [balanceValue, setBalanceValue] = useState("");
 
   function submit(event: FormEvent) {
     event.preventDefault();
@@ -166,8 +184,11 @@ function UsersPanel({ users }: { users: AdminUser[] }) {
       <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="Email address" className="rounded-xl border border-[#1c3026] bg-[#07110d] p-3 outline-none focus:border-[#43e58c]" />
       <button className="rounded-xl bg-[#43e58c] px-5 py-3 font-semibold text-black"><UserPlus size={17} className="mr-2 inline" />Add user</button>
     </form>
+    {loading && <p className="p-5 text-sm text-gray-500">Fetching users from Firebase...</p>}
+    {error && <p className="p-5 text-sm text-red-300">{error}</p>}
+    {!loading && !error && users.length === 0 && <p className="p-5 text-sm text-gray-500">No users found in Firestore.</p>}
     <div className="divide-y divide-[#1c3026]">
-      {users.map((user) => <div key={user.id} className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between"><div><p className="font-medium">{user.name}</p><p className="text-sm text-gray-500">{user.email} · {formatAdminUgx(user.balance)}</p></div><button onClick={() => updateAdminUserStatus(user.id, user.status === "Active" ? "Suspended" : "Active")} className={`rounded-lg px-3 py-2 text-sm ${user.status === "Active" ? "bg-[#43e58c]/10 text-[#43e58c]" : "bg-red-500/10 text-red-400"}`}>{user.status === "Active" ? "Suspend" : "Activate"}</button></div>)}
+      {users.map((user) => <div key={user.id} className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between"><div><p className="font-medium">{user.name}</p><p className="text-sm text-gray-500">{user.email}</p><p className="mt-1 text-sm text-[#43e58c]">{formatAdminUgx(user.balance)}</p></div><div className="flex flex-wrap items-center gap-2"><button onClick={() => { setEditingBalance(user.id); setBalanceValue(String(user.balance)); }} className="rounded-lg border border-[#1c3026] px-3 py-2 text-sm text-gray-300 hover:border-[#43e58c]/50">Edit balance</button><button onClick={() => updateAdminUserStatus(user.id, user.status === "Active" ? "Suspended" : "Active")} className={`rounded-lg px-3 py-2 text-sm ${user.status === "Active" ? "bg-[#43e58c]/10 text-[#43e58c]" : "bg-red-500/10 text-red-400"}`}>{user.status === "Active" ? "Suspend" : "Activate"}</button><button onClick={() => deleteAdminUser(user.id)} aria-label={`Delete ${user.name}`} className="rounded-lg p-2 text-red-300 hover:bg-red-400/10"><Trash2 size={17} /></button></div>{editingBalance === user.id && <div className="flex gap-2 sm:ml-auto"><input type="number" min="0" value={balanceValue} onChange={(event) => setBalanceValue(event.target.value)} className="w-36 rounded-lg border border-[#1c3026] bg-[#07110d] px-3 py-2 text-sm outline-none focus:border-[#43e58c]" /><button onClick={() => { const balance = Number(balanceValue); if (balance >= 0) updateAdminUserBalance(user.id, balance); setEditingBalance(null); }} className="rounded-lg bg-[#43e58c] px-3 py-2 text-sm font-semibold text-black">Save</button></div>}</div>)}
     </div>
   </Panel>;
 }
@@ -194,7 +215,7 @@ function InvestmentsPanel({ investments }: { investments: AdminInvestment[] }) {
       <input type="number" min="0.01" step="0.01" value={multiplier} onChange={(event) => setMultiplier(event.target.value)} placeholder="Multiplier" className="rounded-xl border border-[#1c3026] bg-[#07110d] p-3 outline-none focus:border-[#43e58c]" />
       <button className="rounded-xl bg-[#43e58c] px-5 py-3 font-semibold text-black"><Plus size={17} className="mr-2 inline" />Create</button>
     </form>
-    <div className="grid gap-4 p-5 md:grid-cols-2 xl:grid-cols-3">{investments.map((investment) => <div key={investment.id} className="rounded-xl border border-[#1c3026] p-4"><div className="flex justify-between"><div><p className="font-semibold">{investment.name}</p><p className="text-sm text-gray-500">{investment.symbol}</p></div><span className="text-sm text-[#43e58c]">{investment.status}</span></div><p className="mt-4 text-sm text-gray-400">Locked for {investment.lockDays} days</p><p className="mt-1 text-sm text-gray-400">Maturity multiplier: <span className="text-white">x {investment.multiplier.toFixed(2)}</span></p></div>)}</div>
+    <div className="grid gap-4 p-5 md:grid-cols-2 xl:grid-cols-3">{investments.map((investment) => <div key={investment.id} className="rounded-xl border border-[#1c3026] p-4"><div className="flex justify-between gap-3"><div><p className="font-semibold">{investment.name}</p><p className="text-sm text-gray-500">{investment.symbol}</p></div><button onClick={() => deleteAdminInvestment(investment.id, investments)} aria-label={`Delete ${investment.name}`} className="text-red-300 hover:text-red-200"><Trash2 size={17} /></button></div><p className="mt-4 text-sm text-gray-400">Locked for {investment.lockDays} days</p><p className="mt-1 text-sm text-gray-400">Maturity multiplier: <span className="text-white">x {investment.multiplier.toFixed(2)}</span></p></div>)}</div>
   </Panel>;
 }
 
@@ -204,10 +225,11 @@ function RequestsPanel({ requests }: { requests: AdminRequest[] }) {
   </Panel>;
 }
 
-function MessagesPanel() {
+function MessagesPanel({ users }: { users: AdminUser[] }) {
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
   const [message, setMessage] = useState("");
+  const [recipient, setRecipient] = useState("All Users");
   const [replies, setReplies] = useState<Message[]>([]);
 
   useEffect(() => {
@@ -224,17 +246,18 @@ function MessagesPanel() {
       return;
     }
 
-    sendAdminMessage(subject.trim(), body.trim());
+    sendAdminMessage(recipient, subject.trim(), body.trim());
     setSubject("");
     setBody("");
-    setMessage("Message sent to Digi User.");
+    setMessage(`Message sent to ${recipient === "All Users" ? "all users" : recipient}.`);
   }
 
   return <Panel title="Messages" description="Send announcements and read user replies.">
     <form onSubmit={submit} className="space-y-4 p-5">
       <label className="block text-sm text-gray-400">Recipient
         <select className="mt-2 w-full rounded-xl border border-[#1c3026] bg-[#07110d] p-3 text-white outline-none focus:border-[#43e58c]">
-          <option>Digi User</option>
+          <option>All Users</option>
+          {users.map((user) => <option key={user.id} value={user.name}>{user.name}</option>)}
         </select>
       </label>
       <label className="block text-sm text-gray-400">Subject

@@ -1,7 +1,7 @@
 export type Message = {
   id: string;
   from: "Admin" | "User";
-  recipient: "Digi User" | "Admin";
+  recipient: string;
   subject: string;
   body: string;
   createdAt: string;
@@ -37,7 +37,9 @@ export function readMessages() {
 }
 
 export function readUserMessages() {
-  return readMessages().filter((message) => message.recipient === "Digi User");
+  return readMessages().filter(
+    (message) => message.recipient === "Digi User" || message.recipient === "All Users"
+  );
 }
 
 export function readUnreadUserMessages() {
@@ -48,13 +50,13 @@ export function readAdminMessages() {
   return readMessages().filter((message) => message.recipient === "Admin");
 }
 
-export function sendAdminMessage(subject: string, body: string) {
+export function sendAdminMessage(recipient: string, subject: string, body: string) {
   write([
     ...readMessages(),
     {
       id: `message-${Date.now()}`,
       from: "Admin",
-      recipient: "Digi User",
+      recipient,
       subject,
       body,
       createdAt: "Just now",

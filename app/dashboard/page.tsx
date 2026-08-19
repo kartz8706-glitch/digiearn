@@ -30,6 +30,8 @@ export default function Dashboard() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [reply, setReply] = useState("");
   const [replyStatus, setReplyStatus] = useState("");
+  const [newSubject, setNewSubject] = useState("");
+  const [newMessage, setNewMessage] = useState("");
   const [userName, setUserName] = useState("Digi User");
 
   useEffect(() => {
@@ -178,6 +180,22 @@ export default function Dashboard() {
             </div>
 
             <div className="mt-5 space-y-3">
+              <form
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  if (!newSubject.trim() || !newMessage.trim()) return;
+                  sendUserMessage(newSubject.trim(), newMessage.trim());
+                  setNewSubject("");
+                  setNewMessage("");
+                  setReplyStatus("Message sent to admin.");
+                }}
+                className="rounded-xl border border-[#1c3026] bg-[#07110d]/60 p-4"
+              >
+                <p className="text-sm font-medium">Start a conversation</p>
+                <input value={newSubject} onChange={(event) => setNewSubject(event.target.value)} placeholder="Subject" className="mt-3 w-full rounded-lg border border-[#1c3026] bg-[#07110d] px-3 py-2 text-sm outline-none focus:border-[#43e58c]" />
+                <textarea value={newMessage} onChange={(event) => setNewMessage(event.target.value)} placeholder="Write to admin..." rows={3} className="mt-2 w-full resize-none rounded-lg border border-[#1c3026] bg-[#07110d] px-3 py-2 text-sm outline-none focus:border-[#43e58c]" />
+                <button type="submit" className="mt-3 rounded-lg bg-[#43e58c] px-3 py-2 text-sm font-semibold text-black">Send message</button>
+              </form>
               {messages.length === 0 && (
                 <p className="rounded-xl border border-dashed border-[#1c3026] p-4 text-sm text-gray-500">No messages yet.</p>
               )}
