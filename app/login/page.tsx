@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { firebaseAuth } from "@/lib/firebase";
 
-const adminEmail = "kartz@gmail.com";
+const adminEmail = "kartz8706@gmail.com";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
