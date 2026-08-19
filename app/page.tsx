@@ -1,4 +1,11 @@
 import Link from "next/link";
+import {
+  ArrowRight,
+  ChartNoAxesCombined,
+  CircleCheck,
+  LockKeyhole,
+  WalletCards,
+} from "lucide-react";
 
 export default function Home() {
   return (
@@ -79,21 +86,64 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="relative z-10 mx-auto grid max-w-6xl gap-5 px-6 pb-20 md:grid-cols-3">
-        {[
-          ["No data", "Portfolio value"],
-          ["No data", "Portfolio return"],
-          ["0", "Assets held"],
-        ].map(([value, label]) => (
-          <div
-            key={label}
-            className="rise-in rounded-2xl border border-[#1c3026] bg-[#0c1813]/80 p-7 text-center backdrop-blur hover:-translate-y-1 hover:border-[#43e58c]/40"
-          >
-            <p className="text-3xl font-bold">{value}</p>
-            <p className="mt-2 text-sm text-gray-500">{label}</p>
-          </div>
-        ))}
+      <section className="relative z-10 mx-auto max-w-6xl px-6 pb-24">
+        <div className="grid overflow-hidden rounded-2xl border border-[#1c3026] bg-[#0c1813]/80 md:grid-cols-3">
+          {[
+            ["01", "Start with a clean slate", "Create an account with no preloaded balance or portfolio."],
+            ["02", "Explore the market", "Review investment products, lock periods, and maturity rules."],
+            ["03", "Make informed moves", "Use simulated deposits, withdrawals, and investments to learn."],
+          ].map(([number, title, description], index) => (
+            <div key={title} className={`p-6 md:p-8 ${index > 0 ? "border-t border-[#1c3026] md:border-l md:border-t-0" : ""}`}>
+              <span className="text-xs font-semibold tracking-[0.2em] text-[#43e58c]">{number}</span>
+              <h2 className="mt-5 text-lg font-semibold">{title}</h2>
+              <p className="mt-3 text-sm leading-6 text-gray-500">{description}</p>
+            </div>
+          ))}
+        </div>
       </section>
+
+      <section className="relative z-10 border-y border-[#1c3026]/80 bg-[#09130f]/80">
+        <div className="mx-auto grid max-w-6xl gap-12 px-6 py-24 lg:grid-cols-[0.8fr_1.2fr] lg:items-center">
+          <div>
+            <p className="text-sm font-medium tracking-[0.2em] text-[#43e58c]">BUILT FOR PRACTICE</p>
+            <h2 className="mt-4 max-w-md text-4xl font-bold leading-tight tracking-[-0.03em]">A calmer way to understand your money.</h2>
+            <p className="mt-5 max-w-md leading-7 text-gray-500">digi.earn gives you a structured place to test decisions before they become habits. Every balance starts at zero, so every move is yours.</p>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            {[
+              [WalletCards, "A personal workspace", "Keep your balance, portfolio, and activity in one focused view."],
+              [LockKeyhole, "Clear lock periods", "See when an investment unlocks before you commit simulated funds."],
+              [ChartNoAxesCombined, "Useful signals", "Compare products with simple rules instead of noisy dashboards."],
+              [CircleCheck, "A safe sandbox", "Practice deposits, withdrawals, and approvals without real-money risk."],
+            ].map(([Icon, title, description]) => {
+              const FeatureIcon = Icon as typeof WalletCards;
+              return (
+                <div key={title as string} className="rounded-2xl border border-[#1c3026] bg-[#0c1813] p-6 transition hover:-translate-y-1 hover:border-[#43e58c]/40">
+                  <FeatureIcon size={22} className="text-[#43e58c]" />
+                  <h3 className="mt-5 font-semibold">{title as string}</h3>
+                  <p className="mt-2 text-sm leading-6 text-gray-500">{description as string}</p>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
+      <section className="relative z-10 mx-auto max-w-6xl px-6 py-24">
+        <div className="overflow-hidden rounded-[2rem] border border-[#43e58c]/25 bg-[#43e58c]/[0.07] px-6 py-12 text-center sm:px-12">
+          <p className="text-sm font-medium tracking-[0.2em] text-[#43e58c]">READY WHEN YOU ARE</p>
+          <h2 className="mx-auto mt-4 max-w-2xl text-4xl font-bold tracking-[-0.03em]">Turn curiosity into a repeatable investing process.</h2>
+          <p className="mx-auto mt-5 max-w-xl leading-7 text-gray-400">Set up your free simulator workspace and make your first decision with context, not pressure.</p>
+          <Link href="/signup" className="mt-8 inline-flex items-center rounded-xl bg-[#43e58c] px-6 py-4 font-semibold text-black shadow-[0_0_34px_rgba(67,229,140,0.18)] hover:-translate-y-1 hover:bg-[#c7f36b]">
+            Create your workspace <ArrowRight size={18} className="ml-2" />
+          </Link>
+        </div>
+      </section>
+
+      <footer className="relative z-10 border-t border-[#1c3026] px-6 py-8 text-center text-sm text-gray-600">
+        <p>digi.earn is a simulated investing environment for learning and practice.</p>
+      </footer>
     </main>
   );
 }

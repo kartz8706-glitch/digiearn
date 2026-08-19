@@ -103,7 +103,7 @@ export default function AdminDashboard() {
         <Link href="/dashboard" className="absolute bottom-5 left-4 right-4 rounded-xl border border-[#1c3026] px-4 py-3 text-center text-sm text-gray-400 hover:bg-[#102019] hover:text-white">Back to user dashboard</Link>
       </aside>
 
-      <main className="px-6 pb-12 pt-24 md:ml-64">
+      <main className="page-enter px-6 pb-12 pt-24 md:ml-64">
         <div className="mx-auto max-w-7xl">
           <div className="mb-8 flex flex-col justify-between gap-4 md:flex-row md:items-end">
             <div><p className="text-sm font-medium text-[#43e58c]">DIGI.EARN ADMINISTRATION</p><h1 className="mt-2 text-3xl font-bold tracking-tight">Management center</h1><p className="mt-2 text-gray-500">Manage users, investment products, and account requests.</p></div>
@@ -262,19 +262,19 @@ function MessagesPanel() {
 }
 
 function Panel({ title, description, children }: { title: string; description: string; children: React.ReactNode }) {
-  return <section className="overflow-hidden rounded-2xl border border-[#1c3026] bg-[#0c1813]"><div className="border-b border-[#1c3026] p-6"><h2 className="font-semibold">{title}</h2><p className="mt-1 text-sm text-gray-500">{description}</p></div>{children}</section>;
+  return <section className="surface lift-on-hover overflow-hidden rounded-2xl"><div className="border-b border-[#1c3026] p-6"><h2 className="font-semibold">{title}</h2><p className="mt-1 text-sm text-gray-500">{description}</p></div>{children}</section>;
 }
 
 function Metric({ title, value, icon }: { title: string; value: string; icon: React.ReactNode }) {
-  return <div className="rounded-2xl border border-[#1c3026] bg-[#0c1813] p-5"><div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#43e58c]/10 text-[#43e58c]">{icon}</div><p className="mt-5 text-sm text-gray-500">{title}</p><p className="mt-1 text-2xl font-bold">{value}</p></div>;
+  return <div className="surface lift-on-hover stagger-item rounded-2xl p-5"><div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#43e58c]/10 text-[#43e58c]">{icon}</div><p className="mt-5 text-sm text-gray-500">{title}</p><p className="mt-1 text-2xl font-bold tracking-tight">{value}</p></div>;
 }
 
 function ActionCard({ title, description, icon, onClick }: { title: string; description: string; icon: React.ReactNode; onClick: () => void }) {
-  return <button onClick={onClick} className="rounded-2xl border border-[#1c3026] bg-[#0c1813] p-5 text-left transition hover:-translate-y-1 hover:border-[#43e58c]/40"><span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#43e58c]/10 text-[#43e58c]">{icon}</span><h2 className="mt-5 font-semibold">{title}</h2><p className="mt-2 text-sm text-gray-500">{description}</p></button>;
+  return <button onClick={onClick} className="surface lift-on-hover stagger-item rounded-2xl p-5 text-left"><span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#43e58c]/10 text-[#43e58c]">{icon}</span><h2 className="mt-5 font-semibold">{title}</h2><p className="mt-2 text-sm text-gray-500">{description}</p></button>;
 }
 
 function AdminNavButton({ active, onClick, icon, children }: { active: boolean; onClick: () => void; icon: React.ReactNode; children: React.ReactNode }) {
-  return <button onClick={onClick} className={`flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm ${active ? "bg-[#43e58c] font-semibold text-black" : "text-gray-400 hover:bg-[#102019] hover:text-white"}`}>{icon}{children}</button>;
+  return <button onClick={onClick} className={`flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm transition hover:translate-x-1 ${active ? "bg-[#43e58c] font-semibold text-black" : "text-gray-400 hover:bg-[#102019] hover:text-white"}`}>{icon}{children}</button>;
 }
 
 function WalletIcon() {

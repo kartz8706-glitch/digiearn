@@ -12,10 +12,10 @@ export default function StatCard({
   positive = true,
 }: StatCardProps) {
   return (
-    <div className="rounded-2xl border border-[#1c3026] bg-[#0c1813] p-5">
+    <div className="surface lift-on-hover mobile-card stagger-item rounded-2xl p-5">
       <p className="text-sm text-gray-500">{title}</p>
 
-      <h3 className="mt-3 text-2xl font-bold">{value}</h3>
+      <h3 className="mt-3 text-2xl font-bold tracking-tight">{value}</h3>
 
       {change && (
         <p

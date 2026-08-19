@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { onAuthStateChanged, signOut } from "firebase/auth";
 import { useState } from "react";
 import { useEffect } from "react";
 import {
@@ -11,6 +12,7 @@ import {
   LayoutDashboard,
   Menu,
   MessageCircle,
+  LogOut,
   ReceiptText,
   Search,
   TrendingUp,
@@ -22,6 +24,7 @@ import {
   messageStateEvent,
   readUnreadUserMessages,
 } from "@/lib/messageStore";
+import { firebaseAuth } from "@/lib/firebase";
 
 const links = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
@@ -37,6 +40,8 @@ export default function Navbar() {
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [signedIn, setSignedIn] = useState(false);
+  const [authReady, setAuthReady] = useState(false);
 
   useEffect(() => {
     const updateUnreadCount = () => setUnreadCount(readUnreadUserMessages().length);
@@ -44,6 +49,19 @@ export default function Navbar() {
     window.addEventListener(messageStateEvent, updateUnreadCount);
     return () => window.removeEventListener(messageStateEvent, updateUnreadCount);
   }, []);
+
+  useEffect(() => {
+    return onAuthStateChanged(firebaseAuth, (user) => {
+      setSignedIn(Boolean(user));
+      setAuthReady(true);
+    });
+  }, []);
+
+  async function handleSignOut() {
+    await signOut(firebaseAuth);
+    window.localStorage.removeItem("digi-earn-role");
+    window.location.assign("/login");
+  }
 
   return (
     <header className="nav-enter fixed top-0 left-0 right-0 z-50 border-b border-[#1c3026]/80 bg-[#07110d]/90 shadow-lg shadow-black/10 backdrop-blur-xl">
@@ -61,9 +79,20 @@ export default function Navbar() {
         </div>
 
         <div className="flex items-center gap-4">
-          <Link href="/login" className="hidden text-sm text-gray-400 hover:text-white md:block">
-            Sign in
-          </Link>
+          {authReady && (signedIn ? (
+            <button
+              type="button"
+              onClick={handleSignOut}
+              className="hidden items-center gap-2 text-sm text-gray-400 hover:text-white md:flex"
+            >
+              <LogOut size={17} />
+              Sign out
+            </button>
+          ) : (
+            <Link href="/login" className="hidden text-sm text-gray-400 hover:text-white md:block">
+              Sign in
+            </Link>
+          ))}
 
           <button
             type="button"
@@ -106,7 +135,7 @@ export default function Navbar() {
       </div>
 
       {menuOpen && (
-        <nav className="border-t border-[#1c3026] bg-[#09130f] p-4 md:hidden">
+        <nav className="mobile-menu-enter border-t border-[#1c3026] bg-[#09130f] p-4 md:hidden">
           <div className="space-y-2">
             {links.map((link) => {
               const Icon = link.icon;
@@ -130,6 +159,16 @@ export default function Navbar() {
                 </Link>
               );
             })}
+            {authReady && signedIn && (
+              <button
+                type="button"
+                onClick={handleSignOut}
+                className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm text-gray-400 hover:bg-[#102019] hover:text-white"
+              >
+                <LogOut size={19} />
+                Sign out
+              </button>
+            )}
           </div>
         </nav>
       )}

@@ -70,9 +70,9 @@ export default function Dashboard() {
       <Navbar />
       <Sidebar />
 
-      <main className="min-h-screen pt-24 md:ml-64 px-6 pb-10">
+      <main className="page-enter min-h-screen px-6 pb-10 pt-24 md:ml-64">
         <div className="mx-auto max-w-7xl">
-          <div className="mb-8">
+          <div className="mb-8 stagger-item">
             <p className="text-gray-500">Welcome back</p>
             <h1 className="mt-1 text-3xl font-bold">Good evening, {userName}.</h1>
           </div>
@@ -102,7 +102,7 @@ export default function Dashboard() {
           </div>
 
           <div className="mt-6 grid gap-6 lg:grid-cols-3">
-            <div className="rounded-2xl border border-[#1c3026] bg-[#0c1813] p-6 lg:col-span-2">
+            <div className="surface lift-on-hover mobile-card rounded-2xl p-6 lg:col-span-2">
               <div className="mb-5 flex items-center justify-between">
                 <div>
                   <h2 className="text-lg font-semibold">
@@ -117,7 +117,7 @@ export default function Dashboard() {
                   {["1M", "3M", "6M", "1Y"].map((period) => (
                     <button
                       key={period}
-                      className="rounded-lg border border-[#1c3026] px-3 py-1 text-xs text-gray-400 hover:text-white"
+                      className="rounded-lg border border-[#1c3026] px-3 py-1 text-xs text-gray-400 hover:border-[#43e58c]/50 hover:bg-[#43e58c]/[0.06] hover:text-white"
                     >
                       {period}
                     </button>
@@ -128,7 +128,7 @@ export default function Dashboard() {
               <PortfolioChart />
             </div>
 
-            <div className="rounded-2xl border border-[#1c3026] bg-[#0c1813] p-6">
+            <div className="surface lift-on-hover mobile-card rounded-2xl p-6">
               <h2 className="text-lg font-semibold">
                 Quick actions
               </h2>
@@ -136,21 +136,21 @@ export default function Dashboard() {
               <div className="mt-5 space-y-3">
                 <Link
                   href="/deposit"
-                  className="block rounded-xl bg-[#43e58c] p-4 text-center font-semibold text-black"
+                  className="shimmer block rounded-xl bg-[#43e58c] p-4 text-center font-semibold text-black hover:-translate-y-1 hover:bg-[#c7f36b]"
                 >
                   Deposit funds
                 </Link>
 
                 <Link
                   href="/investments"
-                  className="block rounded-xl border border-[#1c3026] p-4 text-center hover:bg-[#102019]"
+                  className="block rounded-xl border border-[#1c3026] p-4 text-center hover:-translate-y-1 hover:border-[#43e58c]/50 hover:bg-[#102019]"
                 >
                   Explore investments
                 </Link>
 
                 <Link
                   href="/portfolio"
-                  className="block rounded-xl border border-[#1c3026] p-4 text-center hover:bg-[#102019]"
+                  className="block rounded-xl border border-[#1c3026] p-4 text-center hover:-translate-y-1 hover:border-[#43e58c]/50 hover:bg-[#102019]"
                 >
                   View portfolio
                 </Link>
@@ -158,7 +158,7 @@ export default function Dashboard() {
             </div>
           </div>
 
-          <div className="mt-6 rounded-2xl border border-[#1c3026] bg-[#0c1813] p-6">
+          <div className="surface lift-on-hover mobile-card mt-6 rounded-2xl p-6">
             <h2 className="text-lg font-semibold">Recent activity</h2>
 
             <div className="mt-5">
@@ -168,7 +168,7 @@ export default function Dashboard() {
             </div>
           </div>
 
-          <section id="messages" className="mt-6 rounded-2xl border border-[#1c3026] bg-[#0c1813] p-6">
+          <section id="messages" className="surface lift-on-hover mobile-card mt-6 rounded-2xl p-6">
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-lg font-semibold">Messages</h2>
