@@ -25,6 +25,7 @@ import {
   deleteAdminUser,
   formatAdminUgx,
   updateAdminUserBalance,
+  updateAdminUserFinancials,
   updateAdminUserStatus,
   updateRequestStatus,
   type AdminInvestment,
@@ -35,6 +36,7 @@ import { readAdminMessages, sendAdminMessage, type Message } from "@/lib/message
 import { fetchFromDatabase } from "@/lib/firebaseData";
 import { fetchFirestoreUsers, fetchUserProfile } from "@/lib/firestoreData";
 import { firebaseAuth } from "@/lib/firebase";
+import Logo from "@/components/Logo";
 
 type AdminTab = "overview" | "users" | "investments" | "requests" | "messages";
 
@@ -92,8 +94,8 @@ export default function AdminDashboard() {
     <div className="min-h-screen bg-[#050d09] text-white">
       <header className="fixed left-0 right-0 top-0 z-50 border-b border-[#1c3026] bg-[#07110d]/95 backdrop-blur">
         <div className="flex h-16 items-center justify-between px-6">
-          <Link href="/" className="text-xl font-bold tracking-tight">
-            digi<span className="text-[#43e58c]">.earn</span>
+          <Link href="/" aria-label="digi.earn home">
+            <Logo compact />
           </Link>
           <div className="flex items-center gap-3">
             <span className="hidden text-sm text-gray-500 md:block">{adminName}</span>
@@ -169,6 +171,7 @@ function UsersPanel({ users, loading, error }: { users: AdminUser[]; loading: bo
   const [email, setEmail] = useState("");
   const [editingBalance, setEditingBalance] = useState<string | null>(null);
   const [balanceValue, setBalanceValue] = useState("");
+  const [financialValues, setFinancialValues] = useState<Record<string, { portfolioValue: string; totalInvested: string; availableBalance: string; todaysReturn: string }>>({});
 
   function submit(event: FormEvent) {
     event.preventDefault();
@@ -176,6 +179,19 @@ function UsersPanel({ users, loading, error }: { users: AdminUser[]; loading: bo
     addAdminUser({ name: name.trim(), email: email.trim() });
     setName("");
     setEmail("");
+  }
+
+  function startFinancialEdit(user: AdminUser) {
+    setEditingBalance(user.id);
+    setFinancialValues((current) => ({
+      ...current,
+      [user.id]: {
+        portfolioValue: String(user.portfolioValue ?? user.balance),
+        totalInvested: String(user.totalInvested ?? 0),
+        availableBalance: String(user.availableBalance ?? user.balance),
+        todaysReturn: String(user.todaysReturn ?? 0),
+      },
+    }));
   }
 
   return <Panel title="Users" description="Create accounts and control account access.">
@@ -188,9 +204,13 @@ function UsersPanel({ users, loading, error }: { users: AdminUser[]; loading: bo
     {error && <p className="p-5 text-sm text-red-300">{error}</p>}
     {!loading && !error && users.length === 0 && <p className="p-5 text-sm text-gray-500">No users found in Firestore.</p>}
     <div className="divide-y divide-[#1c3026]">
-      {users.map((user) => <div key={user.id} className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between"><div><p className="font-medium">{user.name}</p><p className="text-sm text-gray-500">{user.email}</p><p className="mt-1 text-sm text-[#43e58c]">{formatAdminUgx(user.balance)}</p></div><div className="flex flex-wrap items-center gap-2"><button onClick={() => { setEditingBalance(user.id); setBalanceValue(String(user.balance)); }} className="rounded-lg border border-[#1c3026] px-3 py-2 text-sm text-gray-300 hover:border-[#43e58c]/50">Edit balance</button><button onClick={() => updateAdminUserStatus(user.id, user.status === "Active" ? "Suspended" : "Active")} className={`rounded-lg px-3 py-2 text-sm ${user.status === "Active" ? "bg-[#43e58c]/10 text-[#43e58c]" : "bg-red-500/10 text-red-400"}`}>{user.status === "Active" ? "Suspend" : "Activate"}</button><button onClick={() => deleteAdminUser(user.id)} aria-label={`Delete ${user.name}`} className="rounded-lg p-2 text-red-300 hover:bg-red-400/10"><Trash2 size={17} /></button></div>{editingBalance === user.id && <div className="flex gap-2 sm:ml-auto"><input type="number" min="0" value={balanceValue} onChange={(event) => setBalanceValue(event.target.value)} className="w-36 rounded-lg border border-[#1c3026] bg-[#07110d] px-3 py-2 text-sm outline-none focus:border-[#43e58c]" /><button onClick={() => { const balance = Number(balanceValue); if (balance >= 0) updateAdminUserBalance(user.id, balance); setEditingBalance(null); }} className="rounded-lg bg-[#43e58c] px-3 py-2 text-sm font-semibold text-black">Save</button></div>}</div>)}
+      {users.map((user) => <div key={user.id} className="flex flex-col gap-4 p-5"><div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"><div><p className="font-medium">{user.name}</p><p className="text-sm text-gray-500">{user.email}</p><p className="mt-1 text-sm text-[#43e58c]">{formatAdminUgx(user.availableBalance ?? user.balance)}</p></div><div className="flex flex-wrap items-center gap-2"><button onClick={() => startFinancialEdit(user)} className="rounded-lg border border-[#1c3026] px-3 py-2 text-sm text-gray-300 hover:border-[#43e58c]/50">Edit financials</button><button onClick={() => updateAdminUserStatus(user.id, user.status === "Active" ? "Suspended" : "Active")} className={`rounded-lg px-3 py-2 text-sm ${user.status === "Active" ? "bg-[#43e58c]/10 text-[#43e58c]" : "bg-red-500/10 text-red-400"}`}>{user.status === "Active" ? "Suspend" : "Activate"}</button><button onClick={() => deleteAdminUser(user.id)} aria-label={`Delete ${user.name}`} className="rounded-lg p-2 text-red-300 hover:bg-red-400/10"><Trash2 size={17} /></button></div></div>{editingBalance === user.id && <div className="grid gap-3 rounded-xl border border-[#1c3026] bg-[#07110d]/60 p-4 sm:grid-cols-2"><FinancialInput label="Portfolio value" value={financialValues[user.id]?.portfolioValue || ""} onChange={(value) => setFinancialValues({ ...financialValues, [user.id]: { ...financialValues[user.id], portfolioValue: value } })} /><FinancialInput label="Total invested" value={financialValues[user.id]?.totalInvested || ""} onChange={(value) => setFinancialValues({ ...financialValues, [user.id]: { ...financialValues[user.id], totalInvested: value } })} /><FinancialInput label="Available balance" value={financialValues[user.id]?.availableBalance || ""} onChange={(value) => setFinancialValues({ ...financialValues, [user.id]: { ...financialValues[user.id], availableBalance: value } })} /><FinancialInput label="Today's return" value={financialValues[user.id]?.todaysReturn || ""} onChange={(value) => setFinancialValues({ ...financialValues, [user.id]: { ...financialValues[user.id], todaysReturn: value } })} /><button onClick={() => { const values = financialValues[user.id]; if (!values || Object.values(values).some((value) => Number(value) < 0 || value === "")) return; updateAdminUserFinancials(user.id, { portfolioValue: Number(values.portfolioValue), totalInvested: Number(values.totalInvested), availableBalance: Number(values.availableBalance), todaysReturn: Number(values.todaysReturn) }); setEditingBalance(null); }} className="rounded-lg bg-[#43e58c] px-3 py-2 text-sm font-semibold text-black sm:col-span-2">Save financials</button></div>}</div>)}
     </div>
   </Panel>;
+}
+
+function FinancialInput({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
+  return <label className="text-xs text-gray-500">{label}<input type="number" min="0" step="0.01" value={value} onChange={(event) => onChange(event.target.value)} className="mt-1 w-full rounded-lg border border-[#1c3026] bg-[#07110d] px-3 py-2 text-sm text-white outline-none focus:border-[#43e58c]" /></label>;
 }
 
 function InvestmentsPanel({ investments }: { investments: AdminInvestment[] }) {

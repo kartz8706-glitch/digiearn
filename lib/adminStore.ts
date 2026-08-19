@@ -7,6 +7,10 @@ export type AdminUser = {
   name: string;
   email: string;
   balance: number;
+  portfolioValue?: number;
+  totalInvested?: number;
+  availableBalance?: number;
+  todaysReturn?: number;
   status: "Active" | "Suspended";
 };
 
@@ -113,6 +117,14 @@ export function updateAdminUserStatus(id: string, status: AdminUser["status"]) {
 
 export function updateAdminUserBalance(id: string, balance: number) {
   void saveUserProfile(id, { balance });
+  window.dispatchEvent(new Event(adminStateEvent));
+}
+
+export function updateAdminUserFinancials(
+  id: string,
+  financials: Pick<AdminUser, "portfolioValue" | "totalInvested" | "availableBalance" | "todaysReturn">
+) {
+  void saveUserProfile(id, financials);
   window.dispatchEvent(new Event(adminStateEvent));
 }
 

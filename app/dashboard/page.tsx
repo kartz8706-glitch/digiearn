@@ -27,6 +27,8 @@ import { firebaseAuth } from "@/lib/firebase";
 export default function Dashboard() {
   const [balance, setBalance] = useState(0);
   const [totalInvested, setTotalInvested] = useState(0);
+  const [portfolioValue, setPortfolioValue] = useState(0);
+  const [todaysReturn, setTodaysReturn] = useState(0);
   const [messages, setMessages] = useState<Message[]>([]);
   const [reply, setReply] = useState("");
   const [replyStatus, setReplyStatus] = useState("");
@@ -37,7 +39,8 @@ export default function Dashboard() {
   useEffect(() => {
     const updateSummary = () => {
       const investments = readInvestments();
-      setBalance(readBalance());
+      const currentBalance = readBalance();
+      setBalance(currentBalance);
       setTotalInvested(
         investments.reduce((total, investment) => total + investment.amount, 0)
       );
@@ -59,11 +62,21 @@ export default function Dashboard() {
   useEffect(() => {
     return onAuthStateChanged(firebaseAuth, async (user) => {
       if (!user) return;
-      const profile = await fetchUserProfile<{ name?: string } | null>(
+      const profile = await fetchUserProfile<{
+        name?: string;
+        portfolioValue?: number;
+        totalInvested?: number;
+        availableBalance?: number;
+        todaysReturn?: number;
+      } | null>(
         user.uid,
         null
       );
       setUserName(profile?.name || user.displayName || "Digi User");
+      if (profile?.availableBalance !== undefined) setBalance(profile.availableBalance);
+      if (profile?.totalInvested !== undefined) setTotalInvested(profile.totalInvested);
+      setPortfolioValue(profile?.portfolioValue ?? (profile?.availableBalance ?? 0) + (profile?.totalInvested ?? 0));
+      setTodaysReturn(profile?.todaysReturn ?? 0);
     });
   }, []);
 
@@ -82,7 +95,7 @@ export default function Dashboard() {
           <div className="grid gap-4 md:grid-cols-4">
             <StatCard
               title="Portfolio Value"
-              value={formatUgx(balance + totalInvested)}
+              value={formatUgx(portfolioValue || balance + totalInvested)}
             />
 
             <StatCard
@@ -98,7 +111,7 @@ export default function Dashboard() {
 
             <StatCard
               title="Today's Return"
-              value="UGX 0.00"
+              value={formatUgx(todaysReturn)}
               change=""
             />
           </div>
