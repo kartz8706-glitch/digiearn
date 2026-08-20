@@ -11,6 +11,7 @@ import {
   ArrowUpFromLine,
   User,
   Settings,
+  Gift,
 } from "lucide-react";
 
 const userLinks = [
@@ -43,6 +44,11 @@ const userLinks = [
     name: "Withdraw",
     href: "/withdraw",
     icon: ArrowUpFromLine,
+  },
+  {
+    name: "Referrals",
+    href: "/referrals",
+    icon: Gift,
   },
   {
     name: "Profile",
@@ -86,15 +92,6 @@ export default function Sidebar() {
         })}
       </nav>
 
-      <div className="absolute bottom-6 left-4 right-4">
-        <Link
-          href="/profile"
-          className="flex items-center gap-3 rounded-xl border border-[#1c3026] p-3 text-sm text-gray-400 hover:text-white"
-        >
-          <Settings size={18} />
-          Settings
-        </Link>
-      </div>
     </aside>
   );
 }

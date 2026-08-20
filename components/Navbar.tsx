@@ -9,6 +9,7 @@ import {
   ArrowDownToLine,
   ArrowUpFromLine,
   Bell,
+  Gift,
   LayoutDashboard,
   Menu,
   MessageCircle,
@@ -34,6 +35,7 @@ const links = [
   { name: "Transactions", href: "/transactions", icon: ReceiptText },
   { name: "Deposit", href: "/deposit", icon: ArrowDownToLine },
   { name: "Withdraw", href: "/withdraw", icon: ArrowUpFromLine },
+  { name: "Referrals", href: "/referrals", icon: Gift },
   { name: "Profile", href: "/profile", icon: User },
 ];
 

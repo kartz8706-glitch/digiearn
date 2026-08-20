@@ -1,11 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
-import { ArrowRight, LockKeyhole, Mail, Phone, UserRound } from "lucide-react";
+import { ArrowRight, LockKeyhole, Mail, Phone, UserRound, Gift } from "lucide-react";
 import { firebaseAuth } from "@/lib/firebase";
 import { saveUserProfile } from "@/lib/firestoreData";
+import { initializeReferralData, processReferral } from "@/lib/referralStore";
 
 export default function SignupPage() {
   const [name, setName] = useState("");
@@ -13,6 +14,20 @@ export default function SignupPage() {
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
+  const [referralCode, setReferralCode] = useState("");
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    // Get referral code from URL params
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const ref = params.get("ref");
+      if (ref) {
+        setReferralCode(ref);
+      }
+    }
+  }, []);
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -24,6 +39,7 @@ export default function SignupPage() {
     try {
       const credential = await createUserWithEmailAndPassword(firebaseAuth, email, password);
       await updateProfile(credential.user, { displayName: name });
+      
       await saveUserProfile(credential.user.uid, {
         id: credential.user.uid,
         name,
@@ -31,14 +47,26 @@ export default function SignupPage() {
         phone,
         role: "user",
         balance: 0,
+        referralCode: referralCode || undefined,
         createdAt: new Date().toISOString(),
       });
+
+      // Initialize referral data for new user
+      initializeReferralData(credential.user.uid, name);
+
+      // Process referral if code was provided
+      if (referralCode) {
+        await processReferral(credential.user.uid, name, referralCode, 0);
+      }
+
       setMessage("Account created successfully. Opening your dashboard...");
       window.setTimeout(() => window.location.assign("/dashboard"), 500);
     } catch {
       setMessage("Unable to create your account. The email may already be in use.");
     }
   }
+
+  if (!mounted) return null;
 
   return (
     <main className="min-h-screen bg-[#07110d] px-6 py-8 text-white">
@@ -66,6 +94,18 @@ export default function SignupPage() {
             <h1 className="text-3xl font-bold">Create account</h1>
             <p className="mt-2 text-sm text-gray-500">Start with a simulated UGX portfolio.</p>
           </div>
+
+          {referralCode && (
+            <div className="mb-6 rounded-lg border border-[#43e58c]/30 bg-[#43e58c]/10 p-4">
+              <div className="flex items-center gap-2">
+                <Gift size={18} className="text-[#43e58c]" />
+                <div>
+                  <p className="text-sm font-medium text-[#43e58c]">Referral bonus available!</p>
+                  <p className="text-xs text-gray-400 mt-1">Join with referral code <code className="font-mono text-[#43e58c]">{referralCode}</code> to earn rewards</p>
+                </div>
+              </div>
+            </div>
+          )}
 
           <form onSubmit={submit} className="space-y-5">
             <label className="block text-sm text-gray-400">
@@ -100,7 +140,7 @@ export default function SignupPage() {
               </div>
             </label>
 
-            <button type="submit" className="w-full rounded-xl bg-[#43e58c] px-5 py-4 font-semibold text-black transition hover:opacity-90">
+            <button type="submit" className="w-full rounded-xl bg-[#43e58c] px-5 py-4 font-semibold text-black transition hover:bg-[#c7f36b] hover:-translate-y-0.5">
               Create account <ArrowRight size={18} className="ml-2 inline" />
             </button>
           </form>
