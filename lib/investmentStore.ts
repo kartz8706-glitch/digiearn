@@ -13,6 +13,7 @@ export type Investment = {
 import { mirrorToDatabase } from "@/lib/firebaseData";
 import { firebaseAuth } from "@/lib/firebase";
 import { fetchUserProfile, saveUserProfile } from "@/lib/firestoreData";
+import { addCurrentUserTransaction } from "@/lib/transactionStore";
 
 export const startingBalance = 0;
 export const investmentStateEvent = "investment-state-changed";
@@ -116,6 +117,23 @@ export function readInvestments(): Investment[] {
   }
 }
 
+async function updateInvestmentFinancials(investment: Investment, balance: number) {
+  const userId = firebaseAuth.currentUser?.uid;
+  if (!userId) return;
+
+  const profile = await fetchUserProfile<{
+    totalInvested?: number;
+    portfolioValue?: number;
+  } | null>(userId, null);
+  const totalInvested = Number(profile?.totalInvested ?? 0) + investment.amount;
+  const portfolioValue = balance + totalInvested;
+
+  await saveUserProfile(userId, {
+    totalInvested,
+    portfolioValue,
+  });
+}
+
 export function saveInvestment(investment: Investment) {
   const { userId, investmentsKey } = getUserStorageKeys();
   const investments = readInvestments();
@@ -126,6 +144,15 @@ export function saveInvestment(investment: Investment) {
   const currentBalance = readBalance();
   const newBalance = Math.max(0, currentBalance - investment.amount);
   writeSharedBalance(newBalance);
+  void updateInvestmentFinancials(investment, newBalance);
+  addCurrentUserTransaction({
+    id: `transaction-${investment.id}`,
+    type: "Investment",
+    asset: investment.symbol,
+    amount: investment.amount,
+    createdAt: investment.investedAt,
+    status: "Completed",
+  });
 
   window.dispatchEvent(new Event(investmentStateEvent));
 }

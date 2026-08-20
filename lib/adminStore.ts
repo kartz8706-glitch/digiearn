@@ -1,6 +1,8 @@
 import { adjustBalance, readBalance } from "@/lib/investmentStore";
 import { mirrorToDatabase } from "@/lib/firebaseData";
-import { deleteUserProfile, saveUserProfile } from "@/lib/firestoreData";
+import { firebaseAuth } from "@/lib/firebase";
+import { deleteUserProfile, fetchUserProfile, saveUserProfile } from "@/lib/firestoreData";
+import { addUserTransaction } from "@/lib/transactionStore";
 
 export type AdminUser = {
   id: string;
@@ -25,6 +27,7 @@ export type AdminInvestment = {
 
 export type AdminRequest = {
   id: string;
+  userId?: string;
   user: string;
   type: "Deposit" | "Withdrawal";
   amount: number;
@@ -96,10 +99,13 @@ export function addAdminInvestment(investment: Omit<AdminInvestment, "id" | "sta
 }
 
 export function addAdminRequest(request: Omit<AdminRequest, "id" | "status" | "createdAt">) {
+  const currentUser = firebaseAuth.currentUser;
   write(requestsKey, [
     ...readAdminRequests(),
     {
       ...request,
+      userId: request.userId ?? currentUser?.uid,
+      user: currentUser?.displayName || request.user,
       id: `request-${Date.now()}`,
       status: "Pending",
       createdAt: "Just now",
@@ -140,13 +146,23 @@ export function deleteAdminInvestment(id: string, investments: AdminInvestment[]
   );
 }
 
-export function updateRequestStatus(id: string, status: AdminRequest["status"]) {
+export async function updateRequestStatus(id: string, status: AdminRequest["status"]) {
   const requests = readAdminRequests();
   const request = requests.find((item) => item.id === id);
   const users = readAdminUsers();
 
   if (request?.status === "Pending" && status === "Approved") {
-    if (request.type === "Withdrawal" && request.amount > readBalance()) {
+    const profile = request.userId
+      ? await fetchUserProfile<{
+          balance?: number;
+          availableBalance?: number;
+        } | null>(request.userId, null)
+      : null;
+    const currentBalance = Number(
+      profile?.availableBalance ?? profile?.balance ?? readBalance()
+    );
+
+    if (request.type === "Withdrawal" && request.amount > currentBalance) {
       write(
         requestsKey,
         requests.map((item) =>
@@ -156,18 +172,37 @@ export function updateRequestStatus(id: string, status: AdminRequest["status"]) 
       return;
     }
 
-    adjustBalance(request.type === "Deposit" ? request.amount : -request.amount);
+    const nextBalance =
+      request.type === "Deposit"
+        ? currentBalance + request.amount
+        : currentBalance - request.amount;
+
+    if (request.userId) {
+      await saveUserProfile(request.userId, {
+        balance: nextBalance,
+        availableBalance: nextBalance,
+      });
+      await addUserTransaction(request.userId, {
+        id: `transaction-${request.id}`,
+        type: request.type,
+        asset: request.type,
+        amount: request.amount,
+        createdAt: new Date().toISOString(),
+        status: "Approved",
+      });
+    } else {
+      adjustBalance(request.type === "Deposit" ? request.amount : -request.amount);
+    }
+
     write(
       usersKey,
       users.map((user) =>
-        user.name !== request.user
+        user.id !== request.userId && user.name !== request.user
           ? user
           : {
               ...user,
-              balance:
-                request.type === "Deposit"
-                  ? user.balance + request.amount
-                  : user.balance - request.amount,
+              balance: nextBalance,
+              availableBalance: nextBalance,
             }
       )
     );

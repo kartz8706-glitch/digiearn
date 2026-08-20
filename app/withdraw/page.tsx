@@ -8,6 +8,7 @@ import {
   readAdminRequests,
   type AdminRequest,
 } from "@/lib/adminStore";
+import { firebaseAuth } from "@/lib/firebase";
 import { readBalance, investmentStateEvent, formatUgx } from "@/lib/investmentStore";
 import { useEffect, useState } from "react";
 
@@ -31,19 +32,25 @@ export default function WithdrawPage() {
   }, []);
 
   useEffect(() => {
-    const updateRequests = () =>
+    const updateRequests = () => {
+      const userId = firebaseAuth.currentUser?.uid;
       setPendingRequests(
         readAdminRequests().filter(
           (request) =>
-            request.user === "Digi User" &&
+            (request.userId === userId || (!request.userId && request.user === "Digi User")) &&
             request.type === "Withdrawal" &&
             request.status === "Pending"
         )
       );
+    };
 
     updateRequests();
     window.addEventListener(adminStateEvent, updateRequests);
-    return () => window.removeEventListener(adminStateEvent, updateRequests);
+    window.addEventListener("firebase-auth-state-changed", updateRequests);
+    return () => {
+      window.removeEventListener(adminStateEvent, updateRequests);
+      window.removeEventListener("firebase-auth-state-changed", updateRequests);
+    };
   }, []);
 
   function submitWithdrawal() {

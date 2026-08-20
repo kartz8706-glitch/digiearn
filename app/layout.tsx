@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import FirebaseAnalytics from "@/components/FirebaseAnalytics";
+import MoneyBillBackground from "@/components/MoneyBillBackground";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -19,7 +20,8 @@ export default function RootLayout({
     <html lang="en">
       <body>
         <FirebaseAnalytics />
-        {children}
+        <MoneyBillBackground />
+        <div className="app-shell">{children}</div>
       </body>
     </html>
   );

@@ -40,10 +40,13 @@ export default function Dashboard() {
     const updateSummary = () => {
       const investments = readInvestments();
       const currentBalance = readBalance();
-      setBalance(currentBalance);
-      setTotalInvested(
-        investments.reduce((total, investment) => total + investment.amount, 0)
+      const investedTotal = investments.reduce(
+        (total, investment) => total + investment.amount,
+        0
       );
+      setBalance(currentBalance);
+      setTotalInvested(investedTotal);
+      setPortfolioValue(currentBalance + investedTotal);
       setMessages(readUserMessages());
     };
 

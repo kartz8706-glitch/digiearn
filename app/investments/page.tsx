@@ -114,24 +114,32 @@ function handleInvest(investment: AdminInvestment) {
             Explore simulated investment assets.
           </p>
 
-          <div className="mt-6 rounded-2xl border border-[#1c3026] bg-[#0c1813] p-5">
+          <div className="mt-6 glass-card stat-card-hover">
             <p className="text-sm text-gray-500">Available balance</p>
             <p className="mt-1 text-2xl font-bold">{formatUgx(balance)}</p>
             {message && (
-              <p className="mt-3 text-sm text-[#43e58c]">{message}</p>
+              <p className="mt-3 text-sm text-[#43e58c] animate-pulse">{message}</p>
             )}
           </div>
 
           <div className="mt-8 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {investments.length === 0 && (
-              <p className="rounded-2xl border border-dashed border-[#1c3026] p-8 text-sm text-gray-500 md:col-span-2 lg:col-span-3">
-                No investment products are available yet.
-              </p>
+              <div className="empty-state rounded-2xl border border-dashed border-[#1c3026] p-8 md:col-span-2 lg:col-span-3">
+                <div className="empty-state-icon">
+                  <svg className="w-full h-full" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
+                  </svg>
+                </div>
+                <h2 className="empty-state-title">No Investments Available</h2>
+                <p className="empty-state-description">
+                  No investment products are available yet. Check back soon.
+                </p>
+              </div>
             )}
             {investments.map((investment) => (
               <div
                 key={investment.symbol}
-                className="rounded-2xl border border-[#1c3026] bg-[#0c1813] p-6 transition hover:-translate-y-1"
+                className="glass-card rounded-2xl p-6"
               >
                 <div className="flex items-center justify-between">
                   <div>
@@ -143,7 +151,7 @@ function handleInvest(investment: AdminInvestment) {
                     </p>
                   </div>
 
-                  <span className="rounded-full bg-[#43e58c]/10 px-3 py-1 text-xs text-[#43e58c]">
+                  <span className="rounded-full bg-[#43e58c]/15 px-3 py-1 text-xs text-[#43e58c] font-medium border border-[#43e58c]/30">
                     {investment.status}
                   </span>
                 </div>
@@ -156,10 +164,10 @@ function handleInvest(investment: AdminInvestment) {
                   Locked for {investment.lockDays} days after investing
                 </p>
 
-                <div className="mt-5 rounded-xl border border-[#1c3026] bg-[#07110d] p-4">
+                <div className="mt-5 rounded-xl border border-[#1c3026] bg-[#07110d] p-4 hover:bg-[#0c1813] transition">
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-gray-500">Maturity calculator</span>
-                    <span className="text-[#43e58c]">
+                    <span className="text-[#43e58c] font-semibold">
                       x {investment.multiplier.toFixed(2)}
                     </span>
                   </div>
@@ -188,14 +196,14 @@ function handleInvest(investment: AdminInvestment) {
                       }))
                     }
                     placeholder="0.00"
-                    className="mt-2 w-full rounded-xl border border-[#1c3026] bg-[#07110d] p-3 text-white outline-none focus:border-[#43e58c]"
+                    className="mt-2 w-full rounded-xl border border-[#1c3026] bg-[#07110d] p-3 text-white outline-none focus:border-[#43e58c] focus:ring-2 focus:ring-[#43e58c]/20 transition"
                   />
                 </label>
 
                 <button
                   type="button"
                   onClick={() => handleInvest(investment)}
-                  className="mt-4 w-full rounded-xl bg-[#43e58c] py-3 text-center text-sm font-semibold text-black hover:opacity-90"
+                  className="mt-4 w-full rounded-xl bg-[#43e58c] py-3 text-center text-sm font-semibold text-black hover:bg-[#c7f36b] transition transform hover:-translate-y-0.5"
                 >
                   Invest now
                 </button>
