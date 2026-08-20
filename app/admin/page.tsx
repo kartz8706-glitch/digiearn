@@ -239,11 +239,33 @@ function InvestmentsPanel({ investments }: { investments: AdminInvestment[] }) {
 }
 
 function RequestsPanel({ requests }: { requests: AdminRequest[] }) {
+  const [processingId, setProcessingId] = useState<string | null>(null);
+  const [error, setError] = useState("");
+  const [updatedStatuses, setUpdatedStatuses] = useState<Record<string, AdminRequest["status"]>>({});
+
+  async function changeRequestStatus(id: string, status: AdminRequest["status"]) {
+    setProcessingId(id);
+    setError("");
+    try {
+      await updateRequestStatus(id, status);
+      setUpdatedStatuses((current) => ({
+        ...current,
+        [id]: status === "Approved" ? "Completed" : status,
+      }));
+    } catch {
+      setError("Approval could not be saved. Check Firebase Database and Firestore permissions.");
+    } finally {
+      setProcessingId(null);
+    }
+  }
+
   return <Panel title="Deposit and withdrawal approvals" description="Review pending requests before changing user balances.">
+    {error && <p className="border-b border-red-400/20 bg-red-400/5 p-4 text-sm text-red-300">{error}</p>}
     <div className="divide-y divide-[#1c3026]">{requests.map((request) => {
-      const isPending = request.status === "Pending";
-      const isCompleted = request.status === "Completed";
-      const isRejected = request.status === "Rejected";
+      const requestStatus = updatedStatuses[request.id] ?? request.status;
+      const isPending = requestStatus === "Pending";
+      const isCompleted = requestStatus === "Completed";
+      const isRejected = requestStatus === "Rejected";
       
       return (
         <div key={request.id} className="flex flex-col gap-4 p-5 md:flex-row md:items-center md:justify-between">
@@ -259,11 +281,11 @@ function RequestsPanel({ requests }: { requests: AdminRequest[] }) {
           <div className="flex items-center gap-2">
             {isPending ? (
               <>
-                <button onClick={() => void updateRequestStatus(request.id, "Approved")} className="rounded-lg bg-[#43e58c] px-3 py-2 text-sm font-semibold text-black hover:bg-[#c7f36b] transition">
+                <button disabled={processingId === request.id} onClick={() => void changeRequestStatus(request.id, "Approved")} className="rounded-lg bg-[#43e58c] px-3 py-2 text-sm font-semibold text-black hover:bg-[#c7f36b] transition disabled:cursor-wait disabled:opacity-60">
                   <Check size={15} className="mr-1 inline" />
                   Approve
                 </button>
-                <button onClick={() => void updateRequestStatus(request.id, "Rejected")} className="rounded-lg border border-red-400/40 px-3 py-2 text-sm text-red-300 hover:bg-red-400/10 transition">
+                <button disabled={processingId === request.id} onClick={() => void changeRequestStatus(request.id, "Rejected")} className="rounded-lg border border-red-400/40 px-3 py-2 text-sm text-red-300 hover:bg-red-400/10 transition disabled:cursor-wait disabled:opacity-60">
                   <X size={15} className="mr-1 inline" />
                   Reject
                 </button>

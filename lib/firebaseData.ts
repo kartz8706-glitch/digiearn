@@ -1,10 +1,17 @@
 import { get, ref, set } from "firebase/database";
 import { realtimeDatabase } from "@/lib/firebase";
 
-export function mirrorToDatabase(path: string, value: unknown) {
-  void set(ref(realtimeDatabase, path), value).catch((error: unknown) => {
+export async function mirrorToDatabase(
+  path: string,
+  value: unknown,
+  options: { throwOnError?: boolean } = {}
+) {
+  try {
+    await set(ref(realtimeDatabase, path), value);
+  } catch (error: unknown) {
     console.error(`Firebase write failed for ${path}`, error);
-  });
+    if (options.throwOnError) throw error;
+  }
 }
 
 export async function fetchFromDatabase<T>(path: string, fallback: T) {

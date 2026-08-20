@@ -1,5 +1,9 @@
-import { adjustBalance, readBalance } from "@/lib/investmentStore";
-import { mirrorToDatabase } from "@/lib/firebaseData";
+import {
+  adjustBalance,
+  investmentStateEvent,
+  readBalance,
+} from "@/lib/investmentStore";
+import { fetchFromDatabase, mirrorToDatabase } from "@/lib/firebaseData";
 import { firebaseAuth } from "@/lib/firebase";
 import { deleteUserProfile, fetchUserProfile, saveUserProfile } from "@/lib/firestoreData";
 import { addUserTransaction } from "@/lib/transactionStore";
@@ -57,14 +61,14 @@ function read<T>(key: string, fallback: T): T {
   }
 }
 
-function write(key: string, value: unknown) {
+async function write(key: string, value: unknown) {
   window.localStorage.setItem(key, JSON.stringify(value));
   const databasePath = key.includes("users")
     ? "admin/users"
     : key.includes("investments")
       ? "admin/investments"
       : "admin/requests";
-  mirrorToDatabase(databasePath, value);
+  await mirrorToDatabase(databasePath, value, { throwOnError: true });
   window.dispatchEvent(new Event(adminStateEvent));
 }
 
@@ -147,23 +151,45 @@ export function deleteAdminInvestment(id: string, investments: AdminInvestment[]
 }
 
 export async function updateRequestStatus(id: string, status: AdminRequest["status"]) {
-  const requests = readAdminRequests();
+  const remoteRequests = await fetchFromDatabase<
+    AdminRequest[] | Record<string, AdminRequest>
+  >("admin/requests", []);
+  const requests = Array.isArray(remoteRequests)
+    ? remoteRequests
+    : Object.values(remoteRequests).length > 0
+      ? Object.values(remoteRequests)
+      : readAdminRequests();
   const request = requests.find((item) => item.id === id);
-  const users = readAdminUsers();
 
-  if (request?.status === "Pending" && status === "Approved") {
-    const profile = request.userId
+  if (!request) {
+    return;
+  }
+
+  const users = readAdminUsers();
+  const matchedUser =
+    users.find((user) => user.id === request.userId) ??
+    users.find((user) => user.name === request.user || user.email === request.user) ??
+    null;
+  const targetUserId = request.userId ?? matchedUser?.id ?? null;
+
+  if (request.status === "Pending" && status === "Approved") {
+    const profile = targetUserId
       ? await fetchUserProfile<{
           balance?: number;
           availableBalance?: number;
-        } | null>(request.userId, null)
+        } | null>(targetUserId, null)
       : null;
+
     const currentBalance = Number(
-      profile?.availableBalance ?? profile?.balance ?? readBalance()
+      profile?.availableBalance ??
+        profile?.balance ??
+        matchedUser?.availableBalance ??
+        matchedUser?.balance ??
+        readBalance()
     );
 
     if (request.type === "Withdrawal" && request.amount > currentBalance) {
-      write(
+      await write(
         requestsKey,
         requests.map((item) =>
           item.id === id ? { ...item, status: "Rejected" } : item
@@ -177,12 +203,12 @@ export async function updateRequestStatus(id: string, status: AdminRequest["stat
         ? currentBalance + request.amount
         : currentBalance - request.amount;
 
-    if (request.userId) {
-      await saveUserProfile(request.userId, {
+    if (targetUserId) {
+      await saveUserProfile(targetUserId, {
         balance: nextBalance,
         availableBalance: nextBalance,
       });
-      await addUserTransaction(request.userId, {
+      await addUserTransaction(targetUserId, {
         id: `transaction-${request.id}`,
         type: request.type,
         asset: request.type,
@@ -194,28 +220,34 @@ export async function updateRequestStatus(id: string, status: AdminRequest["stat
       adjustBalance(request.type === "Deposit" ? request.amount : -request.amount);
     }
 
-    write(
-      usersKey,
-      users.map((user) =>
-        user.id !== request.userId && user.name !== request.user
-          ? user
-          : {
-              ...user,
-              balance: nextBalance,
-              availableBalance: nextBalance,
-            }
+    const nextUsers = users.map((user) => {
+      if (!targetUserId && user.name !== request.user && user.id !== request.userId) {
+        return user;
+      }
+
+      if (targetUserId && user.id !== targetUserId) {
+        return user;
+      }
+
+      return {
+        ...user,
+        balance: nextBalance,
+        availableBalance: nextBalance,
+      };
+    });
+
+    await write(usersKey, nextUsers);
+    await write(
+      requestsKey,
+      requests.map((item) =>
+        item.id === id ? { ...item, status: "Completed" } : item
       )
     );
-
-    // Set status to "Completed" after processing
-    write(
-      requestsKey,
-      requests.map((item) => (item.id === id ? { ...item, status: "Completed" } : item))
-    );
+    window.dispatchEvent(new Event(investmentStateEvent));
     return;
   }
 
-  write(
+  await write(
     requestsKey,
     requests.map((item) => (item.id === id ? { ...item, status } : item))
   );
