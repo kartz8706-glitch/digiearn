@@ -63,41 +63,41 @@ export default function InvestmentsPage() {
     };
   }, []);
 
-  function handleInvest(investment: AdminInvestment) {
-    const amount = Number(amounts[investment.symbol]);
+function handleInvest(investment: AdminInvestment) {
+  const amount = Number(amounts[investment.symbol]);
 
-    if (!amount || amount <= 0) {
-      setMessage("Enter an investment amount first.");
-      return;
-    }
-
-    if (amount > balance) {
-      setMessage("That amount is higher than your available balance.");
-      return;
-    }
-
-    const investedAt = new Date();
-    const unlocksAt = new Date(investedAt);
-    unlocksAt.setDate(unlocksAt.getDate() + investment.lockDays);
-
-    saveInvestment({
-      id: `${investment.symbol}-${investedAt.getTime()}`,
-      name: investment.name,
-      symbol: investment.symbol,
-      amount,
-      maturityValue: amount * investment.multiplier,
-      price: `x ${investment.multiplier.toFixed(2)}`,
-      change: investment.status,
-      investedAt: investedAt.toISOString(),
-      unlocksAt: unlocksAt.toISOString(),
-    });
-
-    setAmounts((current) => ({ ...current, [investment.symbol]: "" }));
-    setMessage(
-      `${formatUgx(amount)} invested in ${investment.symbol}. It unlocks on ${unlocksAt.toLocaleDateString()}.`
-    );
+  if (!amount || amount <= 0) {
+    setMessage("Enter an investment amount first.");
+    return;
   }
 
+  if (amount > balance) {
+    setMessage("That amount is higher than your available balance.");
+    return;
+  }
+
+  const investedAt = new Date();
+  const unlocksAt = new Date(investedAt);
+  unlocksAt.setDate(unlocksAt.getDate() + investment.lockDays);
+
+  // Save investment (this will also reduce the shared balance)
+  saveInvestment({
+    id: `${investment.symbol}-${investedAt.getTime()}`,
+    name: investment.name,
+    symbol: investment.symbol,
+    amount,
+    maturityValue: amount * investment.multiplier,
+    price: `x ${investment.multiplier.toFixed(2)}`,
+    change: investment.status,
+    investedAt: investedAt.toISOString(),
+    unlocksAt: unlocksAt.toISOString(),
+  });
+
+  setAmounts((current) => ({ ...current, [investment.symbol]: "" }));
+  setMessage(
+    `${formatUgx(amount)} invested in ${investment.symbol}. Unlocks on ${unlocksAt.toLocaleDateString()}.`
+  );
+}
   return (
     <>
       <Navbar />

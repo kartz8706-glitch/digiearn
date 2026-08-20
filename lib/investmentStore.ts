@@ -12,6 +12,7 @@ export type Investment = {
 
 import { mirrorToDatabase } from "@/lib/firebaseData";
 import { firebaseAuth } from "@/lib/firebase";
+import { fetchUserProfile, saveUserProfile } from "@/lib/firestoreData";
 
 export const startingBalance = 0;
 export const investmentStateEvent = "investment-state-changed";
@@ -26,9 +27,27 @@ const investmentsKeyPrefix = "digi-earn-investments";
 function getUserStorageKeys() {
   const userId = firebaseAuth.currentUser?.uid || "anonymous";
   return {
+    userId,
     balanceKey: `${balanceKeyPrefix}-${userId}`,
     investmentsKey: `${investmentsKeyPrefix}-${userId}`,
   };
+}
+
+function cacheBalance(balance: number) {
+  const { balanceKey } = getUserStorageKeys();
+  window.localStorage.setItem(balanceKey, String(balance));
+}
+
+function writeSharedBalance(balance: number) {
+  const { userId } = getUserStorageKeys();
+  if (typeof window !== "undefined") cacheBalance(balance);
+  mirrorToDatabase(`users/${userId}/balance`, balance);
+  if (userId !== "anonymous") {
+    void saveUserProfile(userId, {
+      balance,
+      availableBalance: balance,
+    });
+  }
 }
 
 export function clearLegacyInvestmentData() {
@@ -43,6 +62,24 @@ export function readBalance() {
   const { balanceKey } = getUserStorageKeys();
   const storedBalance = window.localStorage.getItem(balanceKey);
   return storedBalance === null ? startingBalance : Number(storedBalance);
+}
+
+export async function syncBalanceFromProfile() {
+  if (typeof window === "undefined") return startingBalance;
+
+  const userId = firebaseAuth.currentUser?.uid;
+  if (!userId) return readBalance();
+
+  const profile = await fetchUserProfile<{
+    balance?: number;
+    availableBalance?: number;
+  } | null>(userId, null);
+  const sharedBalance = Number(
+    profile?.availableBalance ?? profile?.balance ?? readBalance()
+  );
+  cacheBalance(sharedBalance);
+  window.dispatchEvent(new Event(investmentStateEvent));
+  return sharedBalance;
 }
 
 export function readInvestments(): Investment[] {
@@ -80,24 +117,22 @@ export function readInvestments(): Investment[] {
 }
 
 export function saveInvestment(investment: Investment) {
-  const nextBalance = readBalance() - investment.amount;
-  const nextInvestments = [...readInvestments(), investment];
+  const investments = readInvestments();
+  investments.push(investment);
+  localStorage.setItem("investments", JSON.stringify(investments));
 
-  const { balanceKey, investmentsKey } = getUserStorageKeys();
-  window.localStorage.setItem(balanceKey, String(nextBalance));
-  window.localStorage.setItem(investmentsKey, JSON.stringify(nextInvestments));
-  const userId = firebaseAuth.currentUser?.uid || "anonymous";
-  mirrorToDatabase(`users/${userId}/balance`, nextBalance);
-  mirrorToDatabase(`users/${userId}/investments`, nextInvestments);
+  // Shared wallet balance
+  const currentBalance = readBalance();
+  const newBalance = Math.max(0, currentBalance - investment.amount);
+
+  localStorage.setItem("balance", JSON.stringify(newBalance));
+
   window.dispatchEvent(new Event(investmentStateEvent));
 }
 
 export function adjustBalance(amount: number) {
   const nextBalance = readBalance() + amount;
-  const { balanceKey } = getUserStorageKeys();
-  window.localStorage.setItem(balanceKey, String(nextBalance));
-  const userId = firebaseAuth.currentUser?.uid || "anonymous";
-  mirrorToDatabase(`users/${userId}/balance`, nextBalance);
+  writeSharedBalance(nextBalance);
   window.dispatchEvent(new Event(investmentStateEvent));
 }
 
