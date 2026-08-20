@@ -117,15 +117,15 @@ export function readInvestments(): Investment[] {
 }
 
 export function saveInvestment(investment: Investment) {
+  const { userId, investmentsKey } = getUserStorageKeys();
   const investments = readInvestments();
   investments.push(investment);
-  localStorage.setItem("investments", JSON.stringify(investments));
+  localStorage.setItem(investmentsKey, JSON.stringify(investments));
+  mirrorToDatabase(`users/${userId}/investments`, investments);
 
-  // Shared wallet balance
   const currentBalance = readBalance();
   const newBalance = Math.max(0, currentBalance - investment.amount);
-
-  localStorage.setItem("balance", JSON.stringify(newBalance));
+  writeSharedBalance(newBalance);
 
   window.dispatchEvent(new Event(investmentStateEvent));
 }

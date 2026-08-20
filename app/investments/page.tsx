@@ -7,6 +7,7 @@ import {
   investmentStateEvent,
   readBalance,
   saveInvestment,
+  syncBalanceFromProfile,
 } from "@/lib/investmentStore";
 import {
   adminStateEvent,
@@ -31,7 +32,10 @@ export default function InvestmentsPage() {
   const [message, setMessage] = useState("");
 
   useEffect(() => {
-    const updateBalance = () => setBalance(readBalance());
+    const updateBalance = () => {
+      setBalance(readBalance());
+      void syncBalanceFromProfile().then(setBalance);
+    };
     updateBalance();
     window.addEventListener(investmentStateEvent, updateBalance);
     window.addEventListener("firebase-auth-state-changed", updateBalance);
