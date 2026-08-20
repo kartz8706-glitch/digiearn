@@ -1,6 +1,7 @@
 @import "tailwindcss";
 
 :root {
+  color-scheme: dark;
   --background: #07110d;
   --card: #0c1813;
   --border: #1c3026;
@@ -8,6 +9,21 @@
   --green: #43e58c;
   --lime: #c7f36b;
   --ink: #eaf4ed;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+  --background: #f3f8f4;
+  --card: #ffffff;
+  --border: #c9ddd0;
+  --muted: #5e7065;
+  --green: #16834e;
+  --lime: #86a928;
+  --ink: #15251c;
+  --surface-soft: #eaf4ed;
+  --surface-raised: #ffffff;
+  --shadow-color: rgba(32, 82, 54, 0.14);
+  --focus-ring: rgba(22, 131, 78, 0.28);
 }
 
 * {
@@ -25,7 +41,44 @@ body {
   min-height: 100vh;
   isolation: isolate;
   overflow-x: hidden;
+  transition: background-color 180ms ease, color 180ms ease;
 }
+
+:root[data-theme="light"] body {
+  background:
+    radial-gradient(circle at 82% -10%, rgba(22, 131, 78, 0.12), transparent 34rem),
+    radial-gradient(circle at -10% 70%, rgba(134, 169, 40, 0.08), transparent 28rem),
+    var(--background);
+}
+
+:root[data-theme="light"] [class~="bg-\[\#07110d\]"] { background-color: color-mix(in srgb, var(--background) 94%, transparent) !important; }
+:root[data-theme="light"] [class~="bg-\[\#09130f\]"] { background-color: color-mix(in srgb, var(--card) 92%, transparent) !important; }
+:root[data-theme="light"] [class~="bg-\[\#0c1813\]"] { background-color: var(--card) !important; }
+:root[data-theme="light"] [class~="bg-\[\#102019\]"] { background-color: #e4f0e8 !important; }
+:root[data-theme="light"] [class~="border-\[\#1c3026\]"] { border-color: var(--border) !important; }
+:root[data-theme="light"] [class*="text-white"] { color: var(--ink) !important; }
+:root[data-theme="light"] [class*="text-gray-400"] { color: #51655a !important; }
+:root[data-theme="light"] [class*="text-gray-500"] { color: var(--muted) !important; }
+:root[data-theme="light"] [class*="text-\[\#43e58c\]"] { color: var(--green) !important; }
+:root[data-theme="light"] [class*="text-\[\#c7f36b\]"] { color: #607c17 !important; }
+:root[data-theme="light"] input,
+:root[data-theme="light"] textarea,
+:root[data-theme="light"] select { color: var(--ink); }
+:root[data-theme="light"] input::placeholder,
+:root[data-theme="light"] textarea::placeholder { color: #789084; }
+:root[data-theme="light"] .money-flow { opacity: 0.42; }
+:root[data-theme="light"] body {
+  background-size: 140% 140%;
+  animation: light-background-drift 24s ease-in-out infinite alternate;
+}
+:root[data-theme="light"] .money-flow { filter: saturate(0.78); opacity: 0.3; }
+:root[data-theme="light"] .market-grid { opacity: 0.28; animation-duration: 58s; }
+:root[data-theme="light"] .market-sweep { opacity: 0.3; animation-duration: 22s; }
+:root[data-theme="light"] .signal-ring { opacity: 0.24; animation-duration: 58s; }
+:root[data-theme="light"] .data-stream { opacity: 0.55; animation-duration: 18s; }
+:root[data-theme="light"] .ticker-ribbon { opacity: 0.2; animation-duration: 20s; }
+:root[data-theme="light"] .money-bill { opacity: 0.22; animation-duration: 42s; }
+:root[data-theme="light"] .signal-node { opacity: 0.32; animation-duration: 10s; }
 
 .app-shell {
   position: relative;
@@ -1182,4 +1235,92 @@ select:focus-visible {
   100% {
     transform: translateX(-50%);
   }
+}
+
+:root[data-theme="light"] .surface,
+:root[data-theme="light"] .glass-card,
+:root[data-theme="light"] .stat-card-hover {
+  border-color: var(--border);
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.96), rgba(237, 246, 240, 0.9));
+  box-shadow: 0 16px 42px rgba(35, 75, 52, 0.1);
+}
+
+:root[data-theme="light"] .glass-card:hover,
+:root[data-theme="light"] .stat-card-hover:hover {
+  background: linear-gradient(145deg, #ffffff, #edf7f0);
+  box-shadow: 0 20px 54px rgba(35, 75, 52, 0.15);
+}
+
+:root[data-theme="light"] [class*="bg-\[\#07110d\]"] {
+  background-color: color-mix(in srgb, var(--background) 94%, transparent) !important;
+}
+
+:root[data-theme="light"] [class*="bg-\[\#09130f\]"] {
+  background-color: color-mix(in srgb, var(--card) 92%, transparent) !important;
+}
+
+:root[data-theme="light"] [class*="bg-\[\#0c1813\]"] {
+  background-color: var(--card) !important;
+}
+
+:root[data-theme="light"] [class*="bg-\[\#050d09\]"] {
+  background-color: var(--background) !important;
+}
+
+:root[data-theme="light"] .nav-link:hover,
+:root[data-theme="light"] [class*="hover:text-white"]:hover {
+  color: var(--ink) !important;
+}
+
+:root[data-theme="light"] .activity-name {
+  color: rgba(21, 37, 28, 0.85);
+}
+
+:root[data-theme="light"] .surface,
+:root[data-theme="light"] .glass-card,
+:root[data-theme="light"] .stat-card-hover {
+  background-color: var(--surface-raised);
+  backdrop-filter: blur(14px);
+  transition: transform 260ms cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 260ms ease, border-color 260ms ease;
+}
+
+:root[data-theme="light"] .surface:hover,
+:root[data-theme="light"] .glass-card:hover,
+:root[data-theme="light"] .stat-card-hover:hover {
+  border-color: rgba(22, 131, 78, 0.42);
+  box-shadow: 0 22px 48px var(--shadow-color), 0 0 0 4px rgba(22, 131, 78, 0.045);
+}
+
+:root[data-theme="light"] .surface::before,
+:root[data-theme="light"] .glass-card::before,
+:root[data-theme="light"] .stat-card-hover::before {
+  background: linear-gradient(120deg, rgba(22, 131, 78, 0.08), transparent 42%, rgba(134, 169, 40, 0.07));
+}
+
+:root[data-theme="light"] .headline-glow {
+  text-shadow: 0 8px 24px rgba(22, 131, 78, 0.16);
+}
+
+:root[data-theme="light"] .nav-enter,
+:root[data-theme="light"] .page-enter,
+:root[data-theme="light"] .rise-in {
+  animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+:root[data-theme="light"] .nav-link::after {
+  background: linear-gradient(90deg, var(--green), #4b9cc0);
+}
+
+:root[data-theme="light"] button:focus-visible,
+:root[data-theme="light"] a:focus-visible,
+:root[data-theme="light"] input:focus-visible,
+:root[data-theme="light"] select:focus-visible,
+:root[data-theme="light"] textarea:focus-visible {
+  outline-color: var(--green);
+  box-shadow: 0 0 0 4px var(--focus-ring);
+}
+
+@keyframes light-background-drift {
+  from { background-position: 0% 0%; }
+  to { background-position: 100% 80%; }
 }

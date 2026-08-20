@@ -8,7 +8,7 @@ import {
   ArrowUpFromLine,
   Check,
   LayoutDashboard,
-  Mail,
+  MessageCircle,
   Trash2,
   Plus,
   ShieldCheck,
@@ -32,10 +32,11 @@ import {
   type AdminRequest,
   type AdminUser,
 } from "@/lib/adminStore";
-import { readAdminMessages, sendAdminMessage, type Message } from "@/lib/messageStore";
 import { fetchFromDatabase } from "@/lib/firebaseData";
 import { fetchFirestoreUsers, fetchUserProfile } from "@/lib/firestoreData";
 import { firebaseAuth } from "@/lib/firebase";
+import ThemeToggle from "@/components/ThemeToggle";
+import ConversationPanel from "@/components/ConversationPanel";
 
 type AdminTab = "overview" | "users" | "investments" | "requests" | "messages";
 
@@ -47,6 +48,14 @@ export default function AdminDashboard() {
   const [adminName, setAdminName] = useState("Administrator");
   const [usersLoading, setUsersLoading] = useState(true);
   const [usersError, setUsersError] = useState("");
+  const [selectedUserId, setSelectedUserId] = useState("");
+  const [newUserNotice, setNewUserNotice] = useState(false);
+
+  useEffect(() => {
+    const showNewUserNotice = () => setNewUserNotice(true);
+    window.addEventListener("digi-earn-new-user", showNewUserNotice);
+    return () => window.removeEventListener("digi-earn-new-user", showNewUserNotice);
+  }, []);
 
   const refresh = async () => {
     if (!firebaseAuth.currentUser) return;
@@ -62,7 +71,9 @@ export default function AdminDashboard() {
       Array.isArray(value) ? value : Object.values(value);
 
     try {
-      setUsers(await fetchFirestoreUsers());
+      const nextUsers = await fetchFirestoreUsers();
+      setUsers(nextUsers);
+      setSelectedUserId((current) => current || nextUsers[0]?.id || "");
     } catch {
       setUsersError("Unable to fetch users from Firebase Firestore.");
     } finally {
@@ -105,6 +116,7 @@ export default function AdminDashboard() {
           </Link>
           <div className="flex items-center gap-3">
             <span className="hidden text-sm text-gray-500 md:block">{adminName}</span>
+            <ThemeToggle />
             <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#43e58c] font-bold text-black">A</span>
           </div>
         </div>
@@ -119,10 +131,10 @@ export default function AdminDashboard() {
         </div>
         <nav className="space-y-2">
           <AdminNavButton active={tab === "overview"} onClick={() => setTab("overview")} icon={<LayoutDashboard size={18} />}>Overview</AdminNavButton>
-          <AdminNavButton active={tab === "users"} onClick={() => setTab("users")} icon={<Users size={18} />}>Users</AdminNavButton>
+          <AdminNavButton active={tab === "users"} onClick={() => { setTab("users"); setNewUserNotice(false); }} icon={<Users size={18} />}>Users {newUserNotice && <UnreadDot />}</AdminNavButton>
           <AdminNavButton active={tab === "investments"} onClick={() => setTab("investments")} icon={<TrendingUp size={18} />}>Investments</AdminNavButton>
           <AdminNavButton active={tab === "requests"} onClick={() => setTab("requests")} icon={<ArrowDownToLine size={18} />}>Approvals</AdminNavButton>
-          <AdminNavButton active={tab === "messages"} onClick={() => setTab("messages")} icon={<Mail size={18} />}>Messages</AdminNavButton>
+          <AdminNavButton active={tab === "messages"} onClick={() => setTab("messages")} icon={<MessageCircle size={18} />}>Messages</AdminNavButton>
         </nav>
         <Link href="/dashboard" className="absolute bottom-5 left-4 right-4 rounded-xl border border-[#1c3026] px-4 py-3 text-center text-sm text-gray-400 hover:bg-[#102019] hover:text-white">Back to user dashboard</Link>
       </aside>
@@ -136,17 +148,25 @@ export default function AdminDashboard() {
 
           <div className="mb-6 grid grid-cols-2 gap-3 md:hidden">
             <AdminNavButton active={tab === "overview"} onClick={() => setTab("overview")} icon={<LayoutDashboard size={17} />}>Overview</AdminNavButton>
-            <AdminNavButton active={tab === "users"} onClick={() => setTab("users")} icon={<Users size={17} />}>Users</AdminNavButton>
+            <AdminNavButton active={tab === "users"} onClick={() => { setTab("users"); setNewUserNotice(false); }} icon={<Users size={17} />}>Users {newUserNotice && <UnreadDot />}</AdminNavButton>
             <AdminNavButton active={tab === "investments"} onClick={() => setTab("investments")} icon={<TrendingUp size={17} />}>Investments</AdminNavButton>
             <AdminNavButton active={tab === "requests"} onClick={() => setTab("requests")} icon={<ArrowDownToLine size={17} />}>Approvals</AdminNavButton>
-            <AdminNavButton active={tab === "messages"} onClick={() => setTab("messages")} icon={<Mail size={17} />}>Messages</AdminNavButton>
+            <AdminNavButton active={tab === "messages"} onClick={() => setTab("messages")} icon={<MessageCircle size={17} />}>Messages</AdminNavButton>
           </div>
 
           {tab === "overview" && <Overview users={users} investments={investments} requests={requests} setTab={setTab} />}
           {tab === "users" && <UsersPanel users={users} loading={usersLoading} error={usersError} />}
           {tab === "investments" && <InvestmentsPanel investments={investments} />}
           {tab === "requests" && <RequestsPanel requests={requests} />}
-          {tab === "messages" && <MessagesPanel users={users} />}
+          {tab === "messages" && (
+            <MessagesPanel
+              users={users}
+              selectedUserId={selectedUserId}
+              onSelectUser={setSelectedUserId}
+              adminId={firebaseAuth.currentUser?.uid || "admin"}
+              adminName={adminName}
+            />
+          )}
         </div>
       </main>
     </div>
@@ -173,6 +193,28 @@ function Overview({ users, investments, requests, setTab }: { users: AdminUser[]
 }
 
 function UsersPanel({ users, loading, error }: { users: AdminUser[]; loading: boolean; error: string }) {
+  const [search, setSearch] = useState("");
+  const filteredUsers = users.filter((user) =>
+    [user.name, user.email, user.phone].some((value) =>
+      String(value || "").toLowerCase().includes(search.trim().toLowerCase())
+    )
+  );
+
+  return (
+    <div>
+      <div className="mb-4 surface rounded-2xl p-5">
+        <label className="block text-sm font-medium">
+          Search users
+          <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search by name, email, or phone" className="mt-2 w-full rounded-xl border border-[#1c3026] bg-[#07110d] p-3 text-sm outline-none focus:border-[#43e58c]" />
+        </label>
+        {search && <p className="mt-2 text-xs text-gray-500">Showing {filteredUsers.length} of {users.length} users</p>}
+      </div>
+      <UsersPanelContent users={filteredUsers} loading={loading} error={error} />
+    </div>
+  );
+}
+
+function UsersPanelContent({ users, loading, error }: { users: AdminUser[]; loading: boolean; error: string }) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [resetMessage, setResetMessage] = useState("");
@@ -332,63 +374,57 @@ function RequestsPanel({ requests }: { requests: AdminRequest[] }) {
   </Panel>;
 }
 
-function MessagesPanel({ users }: { users: AdminUser[] }) {
-  const [subject, setSubject] = useState("");
-  const [body, setBody] = useState("");
-  const [message, setMessage] = useState("");
-  const [recipient, setRecipient] = useState("All Users");
-  const [replies, setReplies] = useState<Message[]>([]);
+function MessagesPanel({
+  users,
+  selectedUserId,
+  onSelectUser,
+  adminId,
+  adminName,
+}: {
+  users: AdminUser[];
+  selectedUserId: string;
+  onSelectUser: (userId: string) => void;
+  adminId: string;
+  adminName: string;
+}) {
+  const selectedUser = users.find((user) => user.id === selectedUserId);
 
-  useEffect(() => {
-    const updateReplies = () => setReplies(readAdminMessages());
-    updateReplies();
-    window.addEventListener("message-state-changed", updateReplies);
-    return () => window.removeEventListener("message-state-changed", updateReplies);
-  }, []);
+  return (
+    <div className="space-y-4">
+      <section className="surface rounded-2xl p-5">
+        <label className="block text-sm font-medium">
+          Customer
+          <select
+            value={selectedUserId}
+            onChange={(event) => onSelectUser(event.target.value)}
+            className="mt-2 w-full rounded-xl border border-[#1c3026] bg-[#07110d] p-3 text-sm outline-none focus:border-[#43e58c]"
+          >
+            <option value="">Select a customer</option>
+            {users.map((user) => (
+              <option key={user.id} value={user.id}>
+                {user.name || "Unnamed user"} · {user.email}
+              </option>
+            ))}
+          </select>
+        </label>
+      </section>
 
-  function submit(event: FormEvent) {
-    event.preventDefault();
-    if (!subject.trim() || !body.trim()) {
-      setMessage("Enter a subject and message before sending.");
-      return;
-    }
-
-    sendAdminMessage(recipient, subject.trim(), body.trim());
-    setSubject("");
-    setBody("");
-    setMessage(`Message sent to ${recipient === "All Users" ? "all users" : recipient}.`);
-  }
-
-  return <Panel title="Messages" description="Send announcements and read user replies.">
-    <form onSubmit={submit} className="space-y-4 p-5">
-      <label className="block text-sm text-gray-400">Recipient
-        <select className="mt-2 w-full rounded-xl border border-[#1c3026] bg-[#07110d] p-3 text-white outline-none focus:border-[#43e58c]">
-          <option>All Users</option>
-          {users.map((user) => <option key={user.id} value={user.name}>{user.name}</option>)}
-        </select>
-      </label>
-      <label className="block text-sm text-gray-400">Subject
-        <input value={subject} onChange={(event) => setSubject(event.target.value)} placeholder="Message subject" className="mt-2 w-full rounded-xl border border-[#1c3026] bg-[#07110d] p-3 text-white outline-none focus:border-[#43e58c]" />
-      </label>
-      <label className="block text-sm text-gray-400">Message
-        <textarea value={body} onChange={(event) => setBody(event.target.value)} placeholder="Write an update for the user..." rows={5} className="mt-2 w-full resize-none rounded-xl border border-[#1c3026] bg-[#07110d] p-3 text-white outline-none focus:border-[#43e58c]" />
-      </label>
-      <button className="rounded-xl bg-[#43e58c] px-5 py-3 font-semibold text-black">Send message</button>
-      {message && <p className="text-sm text-[#43e58c]">{message}</p>}
-    </form>
-    <div className="border-t border-[#1c3026] p-5">
-      <h3 className="font-semibold">User replies</h3>
-      <div className="mt-4 space-y-3">
-        {replies.length === 0 && <p className="text-sm text-gray-500">No user replies yet.</p>}
-        {replies.map((reply) => (
-          <div key={reply.id} className="rounded-xl border border-[#1c3026] p-4">
-            <div className="flex justify-between gap-3"><p className="font-medium">{reply.subject}</p><span className="text-xs text-gray-500">{reply.createdAt}</span></div>
-            <p className="mt-2 text-sm text-gray-400">{reply.body}</p>
-          </div>
-        ))}
-      </div>
+      {selectedUser ? (
+        <ConversationPanel
+          userId={selectedUser.id}
+          currentUserId={adminId}
+          currentUserName={adminName}
+          currentRole="admin"
+          heading={`Conversation with ${selectedUser.name || "customer"}`}
+          description="Messages appear live for this customer."
+        />
+      ) : (
+        <section className="surface rounded-2xl p-8 text-center text-sm text-gray-500">
+          Select a customer to open their conversation.
+        </section>
+      )}
     </div>
-  </Panel>;
+  );
 }
 
 function Panel({ title, description, children }: { title: string; description: string; children: React.ReactNode }) {
@@ -401,6 +437,10 @@ function Metric({ title, value, icon }: { title: string; value: string; icon: Re
 
 function ActionCard({ title, description, icon, onClick }: { title: string; description: string; icon: React.ReactNode; onClick: () => void }) {
   return <button onClick={onClick} className="surface lift-on-hover stagger-item rounded-2xl p-5 text-left"><span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#43e58c]/10 text-[#43e58c]">{icon}</span><h2 className="mt-5 font-semibold">{title}</h2><p className="mt-2 text-sm text-gray-500">{description}</p></button>;
+}
+
+function UnreadDot() {
+  return <span aria-label="New activity" className="ml-auto h-2.5 w-2.5 rounded-full bg-[#c7f36b] shadow-[0_0_12px_rgba(199,243,107,0.8)]" />;
 }
 
 function AdminNavButton({ active, onClick, icon, children }: { active: boolean; onClick: () => void; icon: React.ReactNode; children: React.ReactNode }) {

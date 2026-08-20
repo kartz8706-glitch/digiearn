@@ -12,7 +12,6 @@ import {
   Gift,
   LayoutDashboard,
   Menu,
-  MessageCircle,
   LogOut,
   ReceiptText,
   Search,
@@ -21,12 +20,10 @@ import {
   Wallet,
   X,
 } from "lucide-react";
-import {
-  messageStateEvent,
-  readUnreadUserMessages,
-} from "@/lib/messageStore";
 import { firebaseAuth } from "@/lib/firebase";
 import UserActivityMarquee from "@/components/UserActivityMarquee";
+import ThemeToggle from "@/components/ThemeToggle";
+import { enableNotifications } from "@/lib/notificationService";
 
 const links = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
@@ -42,15 +39,18 @@ const links = [
 export default function Navbar() {
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
-  const [unreadCount, setUnreadCount] = useState(0);
   const [signedIn, setSignedIn] = useState(false);
   const [authReady, setAuthReady] = useState(false);
+  const [activityDot, setActivityDot] = useState(false);
 
   useEffect(() => {
-    const updateUnreadCount = () => setUnreadCount(readUnreadUserMessages().length);
-    updateUnreadCount();
-    window.addEventListener(messageStateEvent, updateUnreadCount);
-    return () => window.removeEventListener(messageStateEvent, updateUnreadCount);
+    const showActivityDot = () => setActivityDot(true);
+    window.addEventListener("digi-earn-message-notification", showActivityDot);
+    window.addEventListener("digi-earn-transaction-notification", showActivityDot);
+    return () => {
+      window.removeEventListener("digi-earn-message-notification", showActivityDot);
+      window.removeEventListener("digi-earn-transaction-notification", showActivityDot);
+    };
   }, []);
 
   useEffect(() => {
@@ -98,6 +98,8 @@ export default function Navbar() {
             </Link>
           ))}
 
+          <ThemeToggle />
+
           <button
             type="button"
             aria-label={menuOpen ? "Close navigation" : "Open navigation"}
@@ -108,26 +110,10 @@ export default function Navbar() {
             {menuOpen ? <X size={21} /> : <Menu size={21} />}
           </button>
 
-          <button type="button" aria-label={`${unreadCount} unread messages`} className="relative rounded-lg p-2">
+          <button type="button" aria-label="Enable notifications and sound" title="Enable notifications and sound" onClick={() => { setActivityDot(false); void enableNotifications(); }} className="relative rounded-lg p-2">
             <Bell size={20} className="text-gray-400 hover:text-white" />
-            {unreadCount > 0 && (
-              <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#c7f36b] px-1 text-[10px] font-bold text-black">
-                {unreadCount}
-              </span>
-            )}
+            {activityDot && <span aria-label="New activity" className="absolute right-1 top-1 h-2.5 w-2.5 rounded-full bg-[#c7f36b] shadow-[0_0_12px_rgba(199,243,107,0.8)]" />}
           </button>
-
-          <Link
-            href="/dashboard#messages"
-            aria-label="Open messages"
-            title="Messages"
-            className="relative rounded-lg p-2 text-gray-400 hover:bg-[#102019] hover:text-white"
-          >
-            <MessageCircle size={20} />
-            {unreadCount > 0 && (
-              <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-[#c7f36b]" />
-            )}
-          </Link>
 
           <Link
             href="/profile"
@@ -160,6 +146,7 @@ export default function Navbar() {
                 >
                   <Icon size={19} />
                   {link.name}
+                  {link.name === "Transactions" && activityDot && <span aria-label="New transaction activity" className="ml-auto h-2.5 w-2.5 rounded-full bg-[#c7f36b]" />}
                 </Link>
               );
             })}

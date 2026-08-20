@@ -9,6 +9,7 @@ import {
   TrendingUp,
   WalletCards,
 } from "lucide-react";
+import ThemeToggle from "@/components/ThemeToggle";
 
 const marketRows = [
   ["UGX 0.00", "Available balance", "Ready"],
@@ -40,6 +41,7 @@ export default function Home() {
         </div>
 
         <div className="flex items-center gap-3">
+          <ThemeToggle />
           <Link href="/login" className="hidden rounded-xl border border-[#1c3026] px-4 py-3 text-sm font-semibold hover:-translate-y-0.5 hover:border-[#43e58c]/60 hover:bg-[#0c1813] sm:block">
             Sign in
           </Link>
