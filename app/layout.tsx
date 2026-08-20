@@ -5,6 +5,9 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "digi.earn",
   description: "Modern digital investment dashboard",
+  icons: {
+    icon: "/digiearn-logo.svg",
+  },
 };
 
 export default function RootLayout({

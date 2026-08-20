@@ -43,7 +43,7 @@ export default function SignupPage() {
   return (
     <main className="min-h-screen bg-[#07110d] px-6 py-8 text-white">
       <div className="mx-auto flex max-w-6xl items-center justify-between">
-        <Link href="/" className="text-xl font-bold tracking-tight">
+        <Link href="/" className="text-xl font-bold text-white">
           digi<span className="text-[#43e58c]">.earn</span>
         </Link>
         <Link href="/login" className="text-sm text-gray-400 hover:text-white">
@@ -60,8 +60,10 @@ export default function SignupPage() {
 
         <section className="rounded-2xl border border-[#1c3026] bg-[#0c1813] p-6 shadow-2xl shadow-black/20 sm:p-8">
           <div className="mb-8">
-            <p className="text-sm text-[#43e58c]">digi.earn</p>
-            <h1 className="mt-2 text-3xl font-bold">Create account</h1>
+            <p className="text-lg font-bold text-white">
+              digi<span className="text-[#43e58c]">.earn</span>
+            </p>
+            <h1 className="text-3xl font-bold">Create account</h1>
             <p className="mt-2 text-sm text-gray-500">Start with a simulated UGX portfolio.</p>
           </div>
 

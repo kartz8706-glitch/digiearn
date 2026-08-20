@@ -4,23 +4,29 @@ import Navbar from "@/components/Navbar";
 import Sidebar from "@/components/Sidebar";
 import {
   formatUgx,
-  getMaturityMultiplier,
   investmentStateEvent,
   readBalance,
   saveInvestment,
 } from "@/lib/investmentStore";
+import {
+  adminStateEvent,
+  readAdminInvestments,
+  type AdminInvestment,
+} from "@/lib/adminStore";
+import { fetchFromDatabase } from "@/lib/firebaseData";
 import { useEffect, useState } from "react";
 
-const investments: {
-  name: string;
-  symbol: string;
-  price: string;
-  change: string;
-  lockDays: number;
-}[] = [];
+function toInvestmentArray(
+  value: AdminInvestment[] | Record<string, AdminInvestment>
+) {
+  return (Array.isArray(value) ? value : Object.values(value)).filter(
+    (investment) => investment.status === "Active"
+  );
+}
 
 export default function InvestmentsPage() {
   const [balance, setBalance] = useState(0);
+  const [investments, setInvestments] = useState<AdminInvestment[]>([]);
   const [amounts, setAmounts] = useState<Record<string, string>>({});
   const [message, setMessage] = useState("");
 
@@ -36,9 +42,29 @@ export default function InvestmentsPage() {
     };
   }, []);
 
-  function handleInvest(investment: (typeof investments)[number]) {
+  useEffect(() => {
+    const updateInvestments = async () => {
+      const localInvestments = readAdminInvestments();
+      setInvestments(toInvestmentArray(localInvestments));
+
+      const firebaseInvestments = await fetchFromDatabase<
+        AdminInvestment[] | Record<string, AdminInvestment>
+      >("admin/investments", localInvestments);
+      setInvestments(toInvestmentArray(firebaseInvestments));
+    };
+
+    void updateInvestments();
+    window.addEventListener(adminStateEvent, updateInvestments);
+    window.addEventListener("firebase-auth-state-changed", updateInvestments);
+
+    return () => {
+      window.removeEventListener(adminStateEvent, updateInvestments);
+      window.removeEventListener("firebase-auth-state-changed", updateInvestments);
+    };
+  }, []);
+
+  function handleInvest(investment: AdminInvestment) {
     const amount = Number(amounts[investment.symbol]);
-    const maturityMultiplier = getMaturityMultiplier(investment.lockDays);
 
     if (!amount || amount <= 0) {
       setMessage("Enter an investment amount first.");
@@ -59,9 +85,9 @@ export default function InvestmentsPage() {
       name: investment.name,
       symbol: investment.symbol,
       amount,
-      maturityValue: amount * maturityMultiplier,
-      price: investment.price,
-      change: investment.change,
+      maturityValue: amount * investment.multiplier,
+      price: `x ${investment.multiplier.toFixed(2)}`,
+      change: investment.status,
       investedAt: investedAt.toISOString(),
       unlocksAt: unlocksAt.toISOString(),
     });
@@ -114,12 +140,12 @@ export default function InvestmentsPage() {
                   </div>
 
                   <span className="rounded-full bg-[#43e58c]/10 px-3 py-1 text-xs text-[#43e58c]">
-                    {investment.change}
+                    {investment.status}
                   </span>
                 </div>
 
                 <p className="mt-6 text-2xl font-bold">
-                  {investment.price}
+                  x {investment.multiplier.toFixed(2)}
                 </p>
 
                 <p className="mt-2 text-sm text-gray-500">
@@ -130,7 +156,7 @@ export default function InvestmentsPage() {
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-gray-500">Maturity calculator</span>
                     <span className="text-[#43e58c]">
-                      x {getMaturityMultiplier(investment.lockDays).toFixed(2)}
+                      x {investment.multiplier.toFixed(2)}
                     </span>
                   </div>
                   <p className="mt-2 text-sm text-gray-400">
@@ -139,7 +165,7 @@ export default function InvestmentsPage() {
                   <p className="mt-1 text-xl font-bold">
                     {formatUgx(
                       Number(amounts[investment.symbol] || 0) *
-                      getMaturityMultiplier(investment.lockDays)
+                      investment.multiplier
                     )}
                   </p>
                 </div>

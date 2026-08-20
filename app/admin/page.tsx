@@ -36,7 +36,6 @@ import { readAdminMessages, sendAdminMessage, type Message } from "@/lib/message
 import { fetchFromDatabase } from "@/lib/firebaseData";
 import { fetchFirestoreUsers, fetchUserProfile } from "@/lib/firestoreData";
 import { firebaseAuth } from "@/lib/firebase";
-import Logo from "@/components/Logo";
 
 type AdminTab = "overview" | "users" | "investments" | "requests" | "messages";
 
@@ -94,8 +93,8 @@ export default function AdminDashboard() {
     <div className="min-h-screen bg-[#050d09] text-white">
       <header className="fixed left-0 right-0 top-0 z-50 border-b border-[#1c3026] bg-[#07110d]/95 backdrop-blur">
         <div className="flex h-16 items-center justify-between px-6">
-          <Link href="/" aria-label="digi.earn home">
-            <Logo compact />
+          <Link href="/" className="text-xl font-bold text-white">
+            digi<span className="text-[#43e58c]">.earn</span>
           </Link>
           <div className="flex items-center gap-3">
             <span className="hidden text-sm text-gray-500 md:block">{adminName}</span>

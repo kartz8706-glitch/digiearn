@@ -66,7 +66,7 @@ export default function Navbar() {
   return (
     <header className="nav-enter fixed top-0 left-0 right-0 z-50 border-b border-[#1c3026]/80 bg-[#07110d]/90 shadow-lg shadow-black/10 backdrop-blur-xl">
       <div className="flex h-16 items-center justify-between px-6">
-        <Link href="/" className="text-xl font-bold tracking-tight transition hover:-translate-y-0.5">
+        <Link href="/" className="text-xl font-bold text-white">
           digi<span className="text-[#43e58c]">.earn</span>
         </Link>
 

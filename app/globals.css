@@ -50,6 +50,146 @@ select:focus-visible {
   mask-image: linear-gradient(to bottom, black, transparent 82%);
 }
 
+.hero-grid-animated {
+  animation: grid-drift 18s linear infinite;
+}
+
+.market-scan {
+  background:
+    linear-gradient(110deg, transparent 0%, rgba(67, 229, 140, 0.08) 42%, transparent 58%),
+    linear-gradient(to bottom, rgba(125, 211, 252, 0.08), transparent);
+  opacity: 0.8;
+  animation: scan-sweep 8s ease-in-out infinite;
+}
+
+.headline-glow {
+  color: var(--green);
+  text-shadow: 0 0 26px rgba(67, 229, 140, 0.22);
+}
+
+.nav-link {
+  position: relative;
+  color: rgb(156 163 175);
+}
+
+.nav-link::after {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -8px;
+  height: 2px;
+  content: "";
+  background: linear-gradient(90deg, var(--green), #7dd3fc);
+  opacity: 0;
+  transform: scaleX(0.35);
+  transition: opacity 180ms ease, transform 180ms ease;
+}
+
+.nav-link:hover {
+  color: white;
+}
+
+.nav-link:hover::after {
+  opacity: 1;
+  transform: scaleX(1);
+}
+
+.ticker-track {
+  width: max-content;
+  animation: ticker-slide 28s linear infinite;
+}
+
+.ticker-track:hover {
+  animation-play-state: paused;
+}
+
+.magnetic-button {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+}
+
+.magnetic-button::before {
+  position: absolute;
+  inset: -1px;
+  z-index: -1;
+  content: "";
+  background: linear-gradient(115deg, rgba(255, 255, 255, 0.45), transparent 35%, rgba(125, 211, 252, 0.28));
+  opacity: 0;
+  transform: translateX(-35%);
+  transition: opacity 220ms ease, transform 260ms ease;
+}
+
+.magnetic-button:hover::before {
+  opacity: 0.55;
+  transform: translateX(0);
+}
+
+.metric-chip {
+  position: relative;
+  overflow: hidden;
+  transition: transform 220ms ease, border-color 220ms ease, background-color 220ms ease;
+}
+
+.metric-chip::after {
+  position: absolute;
+  inset: auto 0 0;
+  height: 2px;
+  content: "";
+  background: linear-gradient(90deg, var(--green), #7dd3fc);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 220ms ease;
+}
+
+.metric-chip:hover {
+  border-color: rgba(125, 211, 252, 0.45);
+  background-color: rgba(12, 24, 19, 0.94);
+  transform: translateY(-3px);
+}
+
+.metric-chip:hover::after {
+  transform: scaleX(1);
+}
+
+.dashboard-preview {
+  box-shadow:
+    0 28px 80px rgba(0, 0, 0, 0.32),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.dashboard-preview::before,
+.cta-panel::before {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  content: "";
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.055), transparent 28%),
+    repeating-linear-gradient(90deg, transparent 0 32px, rgba(67, 229, 140, 0.025) 32px 33px);
+}
+
+.chart-stage {
+  perspective: 700px;
+}
+
+.chart-bar {
+  min-width: 0;
+  background: linear-gradient(180deg, #c7f36b, #43e58c 54%, #1f8a5d);
+  box-shadow: 0 0 20px rgba(67, 229, 140, 0.12);
+  transform-origin: bottom;
+  animation: bar-rise 900ms cubic-bezier(0.2, 0.8, 0.2, 1) both, bar-breathe 3.4s ease-in-out infinite;
+}
+
+.chart-bar:nth-child(even) {
+  background: linear-gradient(180deg, #7dd3fc, #43e58c 58%, #1f8a5d);
+}
+
+.cta-panel {
+  position: relative;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 28px 80px rgba(0, 0, 0, 0.22);
+}
+
 .rise-in {
   animation: rise-in 700ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
@@ -201,6 +341,31 @@ select:focus-visible {
 @keyframes pulse-line {
   0%, 100% { opacity: 0.45; transform: scaleX(0.94); }
   50% { opacity: 1; transform: scaleX(1); }
+}
+
+@keyframes grid-drift {
+  from { background-position: 0 0, 0 0; }
+  to { background-position: 44px 44px, 44px 44px; }
+}
+
+@keyframes scan-sweep {
+  0%, 100% { transform: translateX(-12%); opacity: 0.45; }
+  50% { transform: translateX(12%); opacity: 0.9; }
+}
+
+@keyframes ticker-slide {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+@keyframes bar-rise {
+  from { opacity: 0; transform: scaleY(0.12) rotateX(18deg); }
+  to { opacity: 1; transform: scaleY(1) rotateX(0); }
+}
+
+@keyframes bar-breathe {
+  0%, 100% { filter: saturate(1); }
+  50% { filter: saturate(1.28); }
 }
 
 @media (prefers-reduced-motion: reduce) {
