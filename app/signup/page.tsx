@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
-import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
+import { createUserWithEmailAndPassword, fetchSignInMethodsForEmail, updateProfile } from "firebase/auth";
 import { ArrowRight, LockKeyhole, Mail, Phone, UserRound, Gift } from "lucide-react";
 import { firebaseAuth } from "@/lib/firebase";
 import { saveUserProfile } from "@/lib/firestoreData";
@@ -37,32 +37,59 @@ export default function SignupPage() {
     }
 
     try {
+      const methods = await fetchSignInMethodsForEmail(firebaseAuth, email);
+      if (methods.length > 0) {
+        setMessage("This email is already in use. Please sign in or use a different email.");
+        return;
+      }
+
       const credential = await createUserWithEmailAndPassword(firebaseAuth, email, password);
       await updateProfile(credential.user, { displayName: name });
-      
-      await saveUserProfile(credential.user.uid, {
+
+      const profileData: Record<string, unknown> = {
         id: credential.user.uid,
         name,
         email,
         phone,
         role: "user",
         balance: 0,
-        referralCode: referralCode || undefined,
         createdAt: new Date().toISOString(),
-      });
+      };
 
-      // Initialize referral data for new user
+      if (referralCode) {
+        profileData.referralCode = referralCode;
+      }
+
+      await saveUserProfile(credential.user.uid, profileData);
+
       initializeReferralData(credential.user.uid, name);
 
-      // Process referral if code was provided
       if (referralCode) {
         await processReferral(credential.user.uid, name, referralCode, 0);
       }
 
       setMessage("Account created successfully. Opening your dashboard...");
       window.setTimeout(() => window.location.assign("/dashboard"), 500);
-    } catch {
-      setMessage("Unable to create your account. The email may already be in use.");
+    } catch (error: any) {
+      console.error("Signup failed:", error);
+
+      const code = error?.code;
+
+      if (code === "auth/email-already-in-use") {
+        setMessage("This email is already in use. Please sign in or use a different email.");
+      } else if (code === "auth/weak-password") {
+        setMessage("Password is too weak. Use at least 6 characters with a mix of letters and numbers.");
+      } else if (code === "auth/invalid-email") {
+        setMessage("Please enter a valid email address.");
+      } else if (code === "auth/operation-not-allowed") {
+        setMessage("Email/password signup is disabled in Firebase. Enable it in Authentication > Sign-in method.");
+      } else if (code === "auth/configuration-not-found") {
+        setMessage("Firebase Authentication is not configured for this project yet.");
+      } else if (code === "auth/network-request-failed") {
+        setMessage("Network problem. Check your connection and try again.");
+      } else {
+        setMessage("Unable to create your account. Please try again or contact support.");
+      }
     }
   }
 

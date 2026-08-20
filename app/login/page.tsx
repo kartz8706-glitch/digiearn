@@ -41,8 +41,16 @@ export default function LoginPage() {
       window.localStorage.setItem("digi-earn-role", resolvedRole);
       setMessage(`Signed in as ${isAdmin ? "administrator" : "user"}. Opening your dashboard...`);
       window.setTimeout(() => window.location.assign(destination), 500);
-    } catch {
-      setMessage("Unable to sign in. Check your email and password.");
+    } catch (error: any) {
+      const code = error?.code;
+
+      if (code === "auth/invalid-credential" || code === "auth/user-not-found" || code === "auth/wrong-password") {
+        setMessage("Incorrect email or password. Please check your details and try again.");
+      } else if (code === "auth/invalid-email") {
+        setMessage("Please enter a valid email address.");
+      } else {
+        setMessage("Unable to sign in. Please try again.");
+      }
     }
   }
 
