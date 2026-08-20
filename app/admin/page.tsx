@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
-import { onAuthStateChanged } from "firebase/auth";
+import { onAuthStateChanged, sendPasswordResetEmail } from "firebase/auth";
 import {
   ArrowDownToLine,
   ArrowUpFromLine,
@@ -74,7 +74,14 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     window.addEventListener(adminStateEvent, refresh);
-    return () => window.removeEventListener(adminStateEvent, refresh);
+    const refreshInterval = window.setInterval(() => {
+      void refresh();
+    }, 120_000);
+
+    return () => {
+      window.removeEventListener(adminStateEvent, refresh);
+      window.clearInterval(refreshInterval);
+    };
   }, []);
 
   useEffect(() => {
@@ -168,6 +175,7 @@ function Overview({ users, investments, requests, setTab }: { users: AdminUser[]
 function UsersPanel({ users, loading, error }: { users: AdminUser[]; loading: boolean; error: string }) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [resetMessage, setResetMessage] = useState("");
   const [editingBalance, setEditingBalance] = useState<string | null>(null);
   const [balanceValue, setBalanceValue] = useState("");
   const [financialValues, setFinancialValues] = useState<Record<string, { portfolioValue: string; totalInvested: string; availableBalance: string; todaysReturn: string }>>({});
@@ -178,6 +186,16 @@ function UsersPanel({ users, loading, error }: { users: AdminUser[]; loading: bo
     addAdminUser({ name: name.trim(), email: email.trim() });
     setName("");
     setEmail("");
+  }
+
+  async function sendResetEmail(userEmail: string) {
+    setResetMessage("");
+    try {
+      await sendPasswordResetEmail(firebaseAuth, userEmail);
+      setResetMessage(`Password reset email sent to ${userEmail}.`);
+    } catch {
+      setResetMessage("Unable to send the password reset email.");
+    }
   }
 
   function startFinancialEdit(user: AdminUser) {
@@ -201,9 +219,10 @@ function UsersPanel({ users, loading, error }: { users: AdminUser[]; loading: bo
     </form>
     {loading && <p className="p-5 text-sm text-gray-500">Fetching users from Firebase...</p>}
     {error && <p className="p-5 text-sm text-red-300">{error}</p>}
+      {resetMessage && <p className="border-b border-[#1c3026] p-5 text-sm text-[#43e58c]">{resetMessage}</p>}
     {!loading && !error && users.length === 0 && <p className="p-5 text-sm text-gray-500">No users found in Firestore.</p>}
     <div className="divide-y divide-[#1c3026]">
-      {users.map((user) => <div key={user.id} className="flex flex-col gap-4 p-5"><div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"><div><p className="font-medium">{user.name}</p><p className="text-sm text-gray-500">{user.email}</p><p className="mt-1 text-sm text-[#43e58c]">{formatAdminUgx(user.availableBalance ?? user.balance)}</p></div><div className="flex flex-wrap items-center gap-2"><button onClick={() => startFinancialEdit(user)} className="rounded-lg border border-[#1c3026] px-3 py-2 text-sm text-gray-300 hover:border-[#43e58c]/50">Edit financials</button><button onClick={() => updateAdminUserStatus(user.id, user.status === "Active" ? "Suspended" : "Active")} className={`rounded-lg px-3 py-2 text-sm ${user.status === "Active" ? "bg-[#43e58c]/10 text-[#43e58c]" : "bg-red-500/10 text-red-400"}`}>{user.status === "Active" ? "Suspend" : "Activate"}</button><button onClick={() => deleteAdminUser(user.id)} aria-label={`Delete ${user.name}`} className="rounded-lg p-2 text-red-300 hover:bg-red-400/10"><Trash2 size={17} /></button></div></div>{editingBalance === user.id && <div className="grid gap-3 rounded-xl border border-[#1c3026] bg-[#07110d]/60 p-4 sm:grid-cols-2"><FinancialInput label="Portfolio value" value={financialValues[user.id]?.portfolioValue || ""} onChange={(value) => setFinancialValues({ ...financialValues, [user.id]: { ...financialValues[user.id], portfolioValue: value } })} /><FinancialInput label="Total invested" value={financialValues[user.id]?.totalInvested || ""} onChange={(value) => setFinancialValues({ ...financialValues, [user.id]: { ...financialValues[user.id], totalInvested: value } })} /><FinancialInput label="Available balance" value={financialValues[user.id]?.availableBalance || ""} onChange={(value) => setFinancialValues({ ...financialValues, [user.id]: { ...financialValues[user.id], availableBalance: value } })} /><FinancialInput label="Today's return" value={financialValues[user.id]?.todaysReturn || ""} onChange={(value) => setFinancialValues({ ...financialValues, [user.id]: { ...financialValues[user.id], todaysReturn: value } })} /><button onClick={() => { const values = financialValues[user.id]; if (!values || Object.values(values).some((value) => Number(value) < 0 || value === "")) return; updateAdminUserFinancials(user.id, { portfolioValue: Number(values.portfolioValue), totalInvested: Number(values.totalInvested), availableBalance: Number(values.availableBalance), todaysReturn: Number(values.todaysReturn) }); setEditingBalance(null); }} className="rounded-lg bg-[#43e58c] px-3 py-2 text-sm font-semibold text-black sm:col-span-2">Save financials</button></div>}</div>)}
+      {users.map((user) => <div key={user.id} className="flex flex-col gap-4 p-5"><div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"><div><p className="font-medium">{user.name}</p><p className="text-sm text-gray-500">{user.email}</p><p className="text-sm text-gray-500">{user.phone || "No phone number saved"}</p><p className="mt-1 text-sm text-[#43e58c]">{formatAdminUgx(user.availableBalance ?? user.balance)}</p></div><div className="flex flex-wrap items-center gap-2"><button onClick={() => void sendResetEmail(user.email)} className="rounded-lg border border-[#43e58c]/40 px-3 py-2 text-sm text-[#43e58c] hover:bg-[#43e58c]/10">Reset password</button><button onClick={() => startFinancialEdit(user)} className="rounded-lg border border-[#1c3026] px-3 py-2 text-sm text-gray-300 hover:border-[#43e58c]/50">Edit financials</button><button onClick={() => updateAdminUserStatus(user.id, user.status === "Active" ? "Suspended" : "Active")} className={`rounded-lg px-3 py-2 text-sm ${user.status === "Active" ? "bg-[#43e58c]/10 text-[#43e58c]" : "bg-red-500/10 text-red-400"}`}>{user.status === "Active" ? "Suspend" : "Activate"}</button><button onClick={() => deleteAdminUser(user.id)} aria-label={`Delete ${user.name}`} className="rounded-lg p-2 text-red-300 hover:bg-red-400/10"><Trash2 size={17} /></button></div></div>{editingBalance === user.id && <div className="grid gap-3 rounded-xl border border-[#1c3026] bg-[#07110d]/60 p-4 sm:grid-cols-2"><FinancialInput label="Portfolio value" value={financialValues[user.id]?.portfolioValue || ""} onChange={(value) => setFinancialValues({ ...financialValues, [user.id]: { ...financialValues[user.id], portfolioValue: value } })} /><FinancialInput label="Total invested" value={financialValues[user.id]?.totalInvested || ""} onChange={(value) => setFinancialValues({ ...financialValues, [user.id]: { ...financialValues[user.id], totalInvested: value } })} /><FinancialInput label="Available balance" value={financialValues[user.id]?.availableBalance || ""} onChange={(value) => setFinancialValues({ ...financialValues, [user.id]: { ...financialValues[user.id], availableBalance: value } })} /><FinancialInput label="Today's return" value={financialValues[user.id]?.todaysReturn || ""} onChange={(value) => setFinancialValues({ ...financialValues, [user.id]: { ...financialValues[user.id], todaysReturn: value } })} /><button onClick={() => { const values = financialValues[user.id]; if (!values || Object.values(values).some((value) => Number(value) < 0 || value === "")) return; updateAdminUserFinancials(user.id, { portfolioValue: Number(values.portfolioValue), totalInvested: Number(values.totalInvested), availableBalance: Number(values.availableBalance), todaysReturn: Number(values.todaysReturn) }); setEditingBalance(null); }} className="rounded-lg bg-[#43e58c] px-3 py-2 text-sm font-semibold text-black sm:col-span-2">Save financials</button></div>}</div>)}
     </div>
   </Panel>;
 }

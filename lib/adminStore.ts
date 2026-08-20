@@ -13,6 +13,7 @@ export type AdminUser = {
   name: string;
   email: string;
   balance: number;
+  phone?: string;
   portfolioValue?: number;
   totalInvested?: number;
   availableBalance?: number;
