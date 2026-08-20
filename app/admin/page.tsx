@@ -240,7 +240,54 @@ function InvestmentsPanel({ investments }: { investments: AdminInvestment[] }) {
 
 function RequestsPanel({ requests }: { requests: AdminRequest[] }) {
   return <Panel title="Deposit and withdrawal approvals" description="Review pending requests before changing user balances.">
-    <div className="divide-y divide-[#1c3026]">{requests.map((request) => <div key={request.id} className="flex flex-col gap-4 p-5 md:flex-row md:items-center md:justify-between"><div className="flex items-center gap-3"><div className={`rounded-xl p-3 ${request.type === "Deposit" ? "bg-[#43e58c]/10 text-[#43e58c]" : "bg-amber-400/10 text-amber-300"}`}>{request.type === "Deposit" ? <ArrowDownToLine size={19} /> : <ArrowUpFromLine size={19} />}</div><div><p className="font-medium">{request.type} · {request.user}</p><p className="text-sm text-gray-500">{formatAdminUgx(request.amount)} · {request.createdAt}</p></div></div><div className="flex items-center gap-2">{request.status === "Pending" ? <><button onClick={() => void updateRequestStatus(request.id, "Approved")} className="rounded-lg bg-[#43e58c] px-3 py-2 text-sm font-semibold text-black"><Check size={15} className="mr-1 inline" />Approve</button><button onClick={() => void updateRequestStatus(request.id, "Rejected")} className="rounded-lg border border-red-400/40 px-3 py-2 text-sm text-red-300"><X size={15} className="mr-1 inline" />Reject</button></> : <span className={request.status === "Approved" ? "text-sm text-[#43e58c]" : "text-sm text-red-300"}>{request.status}</span>}</div></div>)}</div>
+    <div className="divide-y divide-[#1c3026]">{requests.map((request) => {
+      const isPending = request.status === "Pending";
+      const isCompleted = request.status === "Completed";
+      const isRejected = request.status === "Rejected";
+      
+      return (
+        <div key={request.id} className="flex flex-col gap-4 p-5 md:flex-row md:items-center md:justify-between">
+          <div className="flex items-center gap-3">
+            <div className={`rounded-xl p-3 ${request.type === "Deposit" ? "bg-[#43e58c]/10 text-[#43e58c]" : "bg-amber-400/10 text-amber-300"}`}>
+              {request.type === "Deposit" ? <ArrowDownToLine size={19} /> : <ArrowUpFromLine size={19} />}
+            </div>
+            <div>
+              <p className="font-medium">{request.type} · {request.user}</p>
+              <p className="text-sm text-gray-500">{formatAdminUgx(request.amount)} · {request.createdAt}</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            {isPending ? (
+              <>
+                <button onClick={() => void updateRequestStatus(request.id, "Approved")} className="rounded-lg bg-[#43e58c] px-3 py-2 text-sm font-semibold text-black hover:bg-[#c7f36b] transition">
+                  <Check size={15} className="mr-1 inline" />
+                  Approve
+                </button>
+                <button onClick={() => void updateRequestStatus(request.id, "Rejected")} className="rounded-lg border border-red-400/40 px-3 py-2 text-sm text-red-300 hover:bg-red-400/10 transition">
+                  <X size={15} className="mr-1 inline" />
+                  Reject
+                </button>
+              </>
+            ) : (
+              <div className="flex items-center gap-2">
+                {isCompleted && (
+                  <span className="inline-flex items-center gap-1 rounded-lg bg-[#43e58c]/10 px-3 py-2 text-sm text-[#43e58c] font-medium">
+                    <Check size={15} />
+                    Completed
+                  </span>
+                )}
+                {isRejected && (
+                  <span className="inline-flex items-center gap-1 rounded-lg bg-red-400/10 px-3 py-2 text-sm text-red-300 font-medium">
+                    <X size={15} />
+                    Rejected
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    })}</div>
   </Panel>;
 }
 

@@ -31,7 +31,7 @@ export type AdminRequest = {
   user: string;
   type: "Deposit" | "Withdrawal";
   amount: number;
-  status: "Pending" | "Approved" | "Rejected";
+  status: "Pending" | "Approved" | "Rejected" | "Completed";
   createdAt: string;
 };
 
@@ -188,7 +188,7 @@ export async function updateRequestStatus(id: string, status: AdminRequest["stat
         asset: request.type,
         amount: request.amount,
         createdAt: new Date().toISOString(),
-        status: "Approved",
+        status: "Completed",
       });
     } else {
       adjustBalance(request.type === "Deposit" ? request.amount : -request.amount);
@@ -206,6 +206,13 @@ export async function updateRequestStatus(id: string, status: AdminRequest["stat
             }
       )
     );
+
+    // Set status to "Completed" after processing
+    write(
+      requestsKey,
+      requests.map((item) => (item.id === id ? { ...item, status: "Completed" } : item))
+    );
+    return;
   }
 
   write(
