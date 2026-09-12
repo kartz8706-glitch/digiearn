@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
+  Timer,
   TrendingUp,
   Wallet,
   ReceiptText,
@@ -29,6 +30,11 @@ const userLinks = [
     name: "Portfolio",
     href: "/portfolio",
     icon: Wallet,
+  },
+  {
+    name: "Payout tracker",
+    href: "/tracker",
+    icon: Timer,
   },
   {
     name: "Transactions",

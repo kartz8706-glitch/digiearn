@@ -12,6 +12,7 @@ import {
   Trash2,
   Plus,
   ShieldCheck,
+  Timer,
   TrendingUp,
   UserPlus,
   Users,
@@ -37,8 +38,10 @@ import { fetchFirestoreUsers, fetchUserProfile } from "@/lib/firestoreData";
 import { firebaseAuth } from "@/lib/firebase";
 import ThemeToggle from "@/components/ThemeToggle";
 import ConversationPanel from "@/components/ConversationPanel";
+import InvestmentTracker from "@/components/InvestmentTracker";
+import type { Investment } from "@/lib/investmentStore";
 
-type AdminTab = "overview" | "users" | "investments" | "requests" | "history" | "referrals" | "messages";
+type AdminTab = "overview" | "users" | "investments" | "trackers" | "requests" | "history" | "referrals" | "messages";
 
 const adminPendingReminderKey = "admin-pending-review-key";
 
@@ -186,6 +189,7 @@ export default function AdminDashboard() {
           <AdminNavButton active={tab === "overview"} onClick={() => setTab("overview")} icon={<LayoutDashboard size={18} />}>Overview</AdminNavButton>
           <AdminNavButton active={tab === "users"} onClick={() => { setTab("users"); setNewUserNotice(false); }} icon={<Users size={18} />}>Users {newUserNotice && <UnreadDot />}</AdminNavButton>
           <AdminNavButton active={tab === "investments"} onClick={() => setTab("investments")} icon={<TrendingUp size={18} />}>Investments</AdminNavButton>
+          <AdminNavButton active={tab === "trackers"} onClick={() => setTab("trackers")} icon={<Timer size={18} />}>Payout trackers</AdminNavButton>
           <AdminNavButton active={tab === "requests"} onClick={() => setTab("requests")} icon={<ArrowDownToLine size={18} />}>Approvals</AdminNavButton>
           <AdminNavButton active={tab === "history"} onClick={() => setTab("history")} icon={<Check size={18} />}>History</AdminNavButton>
           <AdminNavButton active={tab === "referrals"} onClick={() => setTab("referrals")} icon={<UserPlus size={18} />}>Referrals</AdminNavButton>
@@ -205,6 +209,7 @@ export default function AdminDashboard() {
             <AdminNavButton active={tab === "overview"} onClick={() => setTab("overview")} icon={<LayoutDashboard size={17} />}>Overview</AdminNavButton>
             <AdminNavButton active={tab === "users"} onClick={() => { setTab("users"); setNewUserNotice(false); }} icon={<Users size={17} />}>Users {newUserNotice && <UnreadDot />}</AdminNavButton>
             <AdminNavButton active={tab === "investments"} onClick={() => setTab("investments")} icon={<TrendingUp size={17} />}>Investments</AdminNavButton>
+            <AdminNavButton active={tab === "trackers"} onClick={() => setTab("trackers")} icon={<Timer size={17} />}>Payout trackers</AdminNavButton>
             <AdminNavButton active={tab === "requests"} onClick={() => setTab("requests")} icon={<ArrowDownToLine size={17} />}>Approvals</AdminNavButton>
             <AdminNavButton active={tab === "history"} onClick={() => setTab("history")} icon={<Check size={17} />}>History</AdminNavButton>
             <AdminNavButton active={tab === "referrals"} onClick={() => setTab("referrals")} icon={<UserPlus size={17} />}>Referrals</AdminNavButton>
@@ -214,6 +219,7 @@ export default function AdminDashboard() {
           {tab === "overview" && <Overview users={users} investments={investments} requests={requests} setTab={setTab} />}
           {tab === "users" && <UsersPanel users={users} loading={usersLoading} error={usersError} />}
           {tab === "investments" && <InvestmentsPanel investments={investments} />}
+          {tab === "trackers" && <InvestmentTrackingPanel users={users} />}
           {tab === "requests" && <RequestsPanel requests={requests.filter((request) => request.status === "Pending")} />}
           {tab === "history" && <HistoryPanel requests={requests.filter((request) => request.status !== "Pending")} />}
           {tab === "referrals" && <ReferralsPanel users={users} />}
@@ -477,6 +483,74 @@ function HistoryPanel({ requests }: { requests: AdminRequest[] }) {
             </div>
           ))}
         </div>
+      )}
+    </Panel>
+  );
+}
+
+function InvestmentTrackingPanel({ users }: { users: AdminUser[] }) {
+  const [selectedUserId, setSelectedUserId] = useState(users[0]?.id || "");
+  const [investments, setInvestments] = useState<Investment[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!selectedUserId && users[0]?.id) setSelectedUserId(users[0].id);
+  }, [selectedUserId, users]);
+
+  useEffect(() => {
+    if (!selectedUserId) {
+      setInvestments([]);
+      return;
+    }
+
+    let active = true;
+    setLoading(true);
+    void fetchFromDatabase<Investment[] | Record<string, Investment>>(
+      `users/${selectedUserId}/investments`,
+      []
+    ).then((value) => {
+      if (!active) return;
+      setInvestments(Array.isArray(value) ? value : Object.values(value));
+      setLoading(false);
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [selectedUserId]);
+
+  const selectedUser = users.find((user) => user.id === selectedUserId);
+
+  return (
+    <Panel title="Payout trackers" description="Monitor each customer's investment lock period and payout readiness.">
+      <div className="border-b border-[#1c3026] p-5">
+        <label className="block text-sm font-medium">
+          Customer
+          <select
+            value={selectedUserId}
+            onChange={(event) => setSelectedUserId(event.target.value)}
+            className="mt-2 w-full rounded-xl border border-[#1c3026] bg-[#07110d] p-3 text-sm outline-none focus:border-[#43e58c]"
+          >
+            <option value="">Select a customer</option>
+            {users.map((user) => (
+              <option key={user.id} value={user.id}>
+                {user.name || "Unnamed user"} · {user.email}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+      {loading ? (
+        <p className="p-6 text-sm text-gray-500">Loading investment timeline...</p>
+      ) : selectedUser ? (
+        <div className="p-5">
+          <p className="mb-4 text-sm text-gray-400">
+            Tracking <span className="font-medium text-white">{selectedUser.name}</span>'s investments.
+          </p>
+          <InvestmentTracker investments={investments} />
+        </div>
+      ) : (
+        <p className="p-6 text-sm text-gray-500">Select a customer to view their payout timeline.</p>
       )}
     </Panel>
   );
