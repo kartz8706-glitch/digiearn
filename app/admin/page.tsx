@@ -40,20 +40,24 @@ import ConversationPanel from "@/components/ConversationPanel";
 
 type AdminTab = "overview" | "users" | "investments" | "requests" | "history" | "referrals" | "messages";
 
-const adminPendingReviewEmail = "hsha55403@gmail.com";
 const adminPendingReminderKey = "admin-pending-review-key";
 
-function sendAdminPendingReviewEmail(pendingRequests: AdminRequest[]) {
-  const summary = pendingRequests
-    .map((request) => `${request.type} · ${request.user} · ${formatAdminUgx(request.amount)}`)
-    .join("\n");
+async function sendAdminPendingReviewEmail(pendingRequests: AdminRequest[]) {
+  try {
+    const response = await fetch("/api/admin/reminders", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ requests: pendingRequests }),
+    });
 
-  const subject = encodeURIComponent("Pending review: admin approval required");
-  const body = encodeURIComponent(
-    `Hello,\n\nThe following requests are currently pending review in the admin dashboard:\n\n${summary}\n\nPlease review them as soon as possible.\n\nRegards,\nDigi.earn Admin System`
-  );
-
-  window.location.href = `mailto:${adminPendingReviewEmail}?subject=${subject}&body=${body}`;
+    if (!response.ok) {
+      console.error("Pending review email failed to send.");
+    }
+  } catch (error) {
+    console.error("Pending review email failed to send.", error);
+  }
 }
 
 export default function AdminDashboard() {
@@ -127,7 +131,7 @@ export default function AdminDashboard() {
     const lastKey = window.localStorage.getItem(adminPendingReminderKey);
 
     if (lastKey !== pendingKey) {
-      sendAdminPendingReviewEmail(pending);
+      void sendAdminPendingReviewEmail(pending);
       window.localStorage.setItem(adminPendingReminderKey, pendingKey);
     }
 
@@ -138,7 +142,7 @@ export default function AdminDashboard() {
         return;
       }
 
-      sendAdminPendingReviewEmail(latestPending);
+      void sendAdminPendingReviewEmail(latestPending);
     }, 10 * 60 * 1000);
 
     return () => window.clearInterval(reminderTimer);
