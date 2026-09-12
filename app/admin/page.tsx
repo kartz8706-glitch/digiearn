@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { onAuthStateChanged, sendPasswordResetEmail } from "firebase/auth";
 import {
   ArrowDownToLine,
@@ -38,7 +38,7 @@ import { firebaseAuth } from "@/lib/firebase";
 import ThemeToggle from "@/components/ThemeToggle";
 import ConversationPanel from "@/components/ConversationPanel";
 
-type AdminTab = "overview" | "users" | "investments" | "requests" | "messages";
+type AdminTab = "overview" | "users" | "investments" | "requests" | "history" | "referrals" | "messages";
 
 export default function AdminDashboard() {
   const [tab, setTab] = useState<AdminTab>("overview");
@@ -134,6 +134,8 @@ export default function AdminDashboard() {
           <AdminNavButton active={tab === "users"} onClick={() => { setTab("users"); setNewUserNotice(false); }} icon={<Users size={18} />}>Users {newUserNotice && <UnreadDot />}</AdminNavButton>
           <AdminNavButton active={tab === "investments"} onClick={() => setTab("investments")} icon={<TrendingUp size={18} />}>Investments</AdminNavButton>
           <AdminNavButton active={tab === "requests"} onClick={() => setTab("requests")} icon={<ArrowDownToLine size={18} />}>Approvals</AdminNavButton>
+          <AdminNavButton active={tab === "history"} onClick={() => setTab("history")} icon={<Check size={18} />}>History</AdminNavButton>
+          <AdminNavButton active={tab === "referrals"} onClick={() => setTab("referrals")} icon={<UserPlus size={18} />}>Referrals</AdminNavButton>
           <AdminNavButton active={tab === "messages"} onClick={() => setTab("messages")} icon={<MessageCircle size={18} />}>Messages</AdminNavButton>
         </nav>
         <Link href="/dashboard" className="absolute bottom-5 left-4 right-4 rounded-xl border border-[#1c3026] px-4 py-3 text-center text-sm text-gray-400 hover:bg-[#102019] hover:text-white">Back to user dashboard</Link>
@@ -151,13 +153,17 @@ export default function AdminDashboard() {
             <AdminNavButton active={tab === "users"} onClick={() => { setTab("users"); setNewUserNotice(false); }} icon={<Users size={17} />}>Users {newUserNotice && <UnreadDot />}</AdminNavButton>
             <AdminNavButton active={tab === "investments"} onClick={() => setTab("investments")} icon={<TrendingUp size={17} />}>Investments</AdminNavButton>
             <AdminNavButton active={tab === "requests"} onClick={() => setTab("requests")} icon={<ArrowDownToLine size={17} />}>Approvals</AdminNavButton>
+            <AdminNavButton active={tab === "history"} onClick={() => setTab("history")} icon={<Check size={17} />}>History</AdminNavButton>
+            <AdminNavButton active={tab === "referrals"} onClick={() => setTab("referrals")} icon={<UserPlus size={17} />}>Referrals</AdminNavButton>
             <AdminNavButton active={tab === "messages"} onClick={() => setTab("messages")} icon={<MessageCircle size={17} />}>Messages</AdminNavButton>
           </div>
 
           {tab === "overview" && <Overview users={users} investments={investments} requests={requests} setTab={setTab} />}
           {tab === "users" && <UsersPanel users={users} loading={usersLoading} error={usersError} />}
           {tab === "investments" && <InvestmentsPanel investments={investments} />}
-          {tab === "requests" && <RequestsPanel requests={requests} />}
+          {tab === "requests" && <RequestsPanel requests={requests.filter((request) => request.status === "Pending")} />}
+          {tab === "history" && <HistoryPanel requests={requests.filter((request) => request.status !== "Pending")} />}
+          {tab === "referrals" && <ReferralsPanel users={users} />}
           {tab === "messages" && (
             <MessagesPanel
               users={users}
@@ -176,18 +182,51 @@ export default function AdminDashboard() {
 function Overview({ users, investments, requests, setTab }: { users: AdminUser[]; investments: AdminInvestment[]; requests: AdminRequest[]; setTab: (tab: AdminTab) => void }) {
   const pending = requests.filter((request) => request.status === "Pending").length;
   const totalBalance = users.reduce((total, user) => total + user.balance, 0);
+  const referralSummary = useMemo(() => {
+    if (typeof window === "undefined") return { total: 0, active: 0, reward: 0 };
+
+    let total = 0;
+    let reward = 0;
+    let active = 0;
+
+    Object.keys(window.localStorage).forEach((key) => {
+      if (!key.startsWith("digi-earn-referrals-")) return;
+
+      try {
+        const value = JSON.parse(window.localStorage.getItem(key) || "{}");
+        total += Number(value.referralCount || 0);
+        reward += Number(value.totalRewardEarned || 0);
+        if (Array.isArray(value.referrers) && value.referrers.length > 0) {
+          active += 1;
+        }
+      } catch {
+        // Ignore invalid stored referrer data.
+      }
+    });
+
+    return { total, active, reward };
+  }, [users.length, requests.length]);
 
   return <>
-    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
       <Metric title="Users" value={String(users.length)} icon={<Users size={20} />} />
       <Metric title="User balances" value={formatAdminUgx(totalBalance)} icon={<WalletIcon />} />
       <Metric title="Investment products" value={String(investments.length)} icon={<TrendingUp size={20} />} />
       <Metric title="Pending approvals" value={String(pending)} icon={<ShieldCheck size={20} />} />
+      <Metric title="Referrals" value={String(referralSummary.total)} icon={<UserPlus size={20} />} />
     </div>
     <div className="mt-6 grid gap-4 md:grid-cols-3">
       <ActionCard title="Add user" description="Create a user account with an active status." onClick={() => setTab("users")} icon={<UserPlus size={21} />} />
       <ActionCard title="Create investment" description="Publish a new lock period and multiplier." onClick={() => setTab("investments")} icon={<Plus size={21} />} />
       <ActionCard title="Review approvals" description="Approve or reject deposits and withdrawals." onClick={() => setTab("requests")} icon={<Check size={21} />} />
+    </div>
+    <div className="mt-6 surface rounded-2xl p-5">
+      <div className="flex items-center justify-between"><h2 className="text-lg font-semibold">Referral tracking</h2><button onClick={() => setTab("referrals")} className="text-sm text-[#43e58c] hover:underline">View all</button></div>
+      <div className="mt-4 grid gap-4 md:grid-cols-3">
+        <MetricMini label="Total referrals" value={String(referralSummary.total)} />
+        <MetricMini label="Referral accounts" value={String(referralSummary.active)} />
+        <MetricMini label="Reward earned" value={formatAdminUgx(referralSummary.reward)} />
+      </div>
     </div>
   </>;
 }
@@ -322,56 +361,135 @@ function RequestsPanel({ requests }: { requests: AdminRequest[] }) {
 
   return <Panel title="Deposit and withdrawal approvals" description="Review pending requests before changing user balances.">
     {error && <p className="border-b border-red-400/20 bg-red-400/5 p-4 text-sm text-red-300">{error}</p>}
-    <div className="divide-y divide-[#1c3026]">{requests.map((request) => {
-      const requestStatus = updatedStatuses[request.id] ?? request.status;
-      const isPending = requestStatus === "Pending";
-      const isCompleted = requestStatus === "Completed";
-      const isRejected = requestStatus === "Rejected";
-      
-      return (
-        <div key={request.id} className="flex flex-col gap-4 p-5 md:flex-row md:items-center md:justify-between">
-          <div className="flex items-center gap-3">
-            <div className={`rounded-xl p-3 ${request.type === "Deposit" ? "bg-[#43e58c]/10 text-[#43e58c]" : "bg-amber-400/10 text-amber-300"}`}>
-              {request.type === "Deposit" ? <ArrowDownToLine size={19} /> : <ArrowUpFromLine size={19} />}
-            </div>
-            <div>
-              <p className="font-medium">{request.type} · {request.user}</p>
-              <p className="text-sm text-gray-500">{formatAdminUgx(request.amount)} · {request.createdAt}</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            {isPending ? (
-              <>
-                <button disabled={processingId === request.id} onClick={() => void changeRequestStatus(request.id, "Approved")} className="rounded-lg bg-[#43e58c] px-3 py-2 text-sm font-semibold text-black hover:bg-[#c7f36b] transition disabled:cursor-wait disabled:opacity-60">
-                  <Check size={15} className="mr-1 inline" />
-                  Approve
-                </button>
-                <button disabled={processingId === request.id} onClick={() => void changeRequestStatus(request.id, "Rejected")} className="rounded-lg border border-red-400/40 px-3 py-2 text-sm text-red-300 hover:bg-red-400/10 transition disabled:cursor-wait disabled:opacity-60">
-                  <X size={15} className="mr-1 inline" />
-                  Reject
-                </button>
-              </>
-            ) : (
-              <div className="flex items-center gap-2">
-                {isCompleted && (
-                  <span className="inline-flex items-center gap-1 rounded-lg bg-[#43e58c]/10 px-3 py-2 text-sm text-[#43e58c] font-medium">
-                    <Check size={15} />
-                    Completed
-                  </span>
-                )}
-                {isRejected && (
-                  <span className="inline-flex items-center gap-1 rounded-lg bg-red-400/10 px-3 py-2 text-sm text-red-300 font-medium">
-                    <X size={15} />
-                    Rejected
-                  </span>
-                )}
+    {requests.length === 0 ? (
+      <div className="p-6 text-sm text-gray-500">No pending approvals right now. View the history tab for completed and rejected requests.</div>
+    ) : (
+      <div className="divide-y divide-[#1c3026]">{requests.map((request) => {
+        const requestStatus = updatedStatuses[request.id] ?? request.status;
+        const isPending = requestStatus === "Pending";
+
+        return (
+          <div key={request.id} className="flex flex-col gap-4 p-5 md:flex-row md:items-center md:justify-between">
+            <div className="flex items-center gap-3">
+              <div className={`rounded-xl p-3 ${request.type === "Deposit" ? "bg-[#43e58c]/10 text-[#43e58c]" : "bg-amber-400/10 text-amber-300"}`}>
+                {request.type === "Deposit" ? <ArrowDownToLine size={19} /> : <ArrowUpFromLine size={19} />}
               </div>
-            )}
+              <div>
+                <p className="font-medium">{request.type} · {request.user}</p>
+                <p className="text-sm text-gray-500">{formatAdminUgx(request.amount)} · {request.createdAt}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              {isPending ? (
+                <>
+                  <button disabled={processingId === request.id} onClick={() => void changeRequestStatus(request.id, "Approved")} className="rounded-lg bg-[#43e58c] px-3 py-2 text-sm font-semibold text-black hover:bg-[#c7f36b] transition disabled:cursor-wait disabled:opacity-60">
+                    <Check size={15} className="mr-1 inline" />
+                    Approve
+                  </button>
+                  <button disabled={processingId === request.id} onClick={() => void changeRequestStatus(request.id, "Rejected")} className="rounded-lg border border-red-400/40 px-3 py-2 text-sm text-red-300 hover:bg-red-400/10 transition disabled:cursor-wait disabled:opacity-60">
+                    <X size={15} className="mr-1 inline" />
+                    Reject
+                  </button>
+                </>
+              ) : null}
+            </div>
           </div>
-        </div>
-      );
-    })}</div>
+        );
+      })}</div>
+    )}
   </Panel>;
+}
+
+function HistoryPanel({ requests }: { requests: AdminRequest[] }) {
+  return (
+    <Panel title="Approval history" description="Completed and rejected deposits and withdrawals stay here for record keeping.">
+      {requests.length === 0 ? (
+        <div className="p-6 text-sm text-gray-500">No completed or rejected requests yet.</div>
+      ) : (
+        <div className="divide-y divide-[#1c3026]">
+          {requests.map((request) => (
+            <div key={request.id} className="flex flex-col gap-3 p-5 md:flex-row md:items-center md:justify-between">
+              <div className="flex items-center gap-3">
+                <div className={`rounded-xl p-3 ${request.status === "Completed" ? "bg-[#43e58c]/10 text-[#43e58c]" : "bg-red-400/10 text-red-300"}`}>
+                  {request.status === "Completed" ? <Check size={19} /> : <X size={19} />}
+                </div>
+                <div>
+                  <p className="font-medium">{request.type} · {request.user}</p>
+                  <p className="text-sm text-gray-500">{formatAdminUgx(request.amount)} · {request.createdAt}</p>
+                </div>
+              </div>
+              <span className={`inline-flex items-center rounded-lg px-3 py-2 text-sm font-medium ${request.status === "Completed" ? "bg-[#43e58c]/10 text-[#43e58c]" : "bg-red-400/10 text-red-300"}`}>
+                {request.status}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+    </Panel>
+  );
+}
+
+function ReferralsPanel({ users }: { users: AdminUser[] }) {
+  const referralEntries = useMemo(() => {
+    if (typeof window === "undefined") return [] as Array<{ userId: string; userName: string; referralCode: string; referralCount: number; totalRewardEarned: number; referrers: any[] }>; 
+
+    return Object.keys(window.localStorage)
+      .filter((key) => key.startsWith("digi-earn-referrals-"))
+      .map((key) => {
+        try {
+          const value = JSON.parse(window.localStorage.getItem(key) || "{}");
+          const match = users.find((user) => user.id === value.userId);
+          return {
+            userId: value.userId,
+            userName: match?.name || value.userName || "Unknown user",
+            referralCode: value.referralCode || "N/A",
+            referralCount: Number(value.referralCount || 0),
+            totalRewardEarned: Number(value.totalRewardEarned || 0),
+            referrers: Array.isArray(value.referrers) ? value.referrers : [],
+          };
+        } catch {
+          return null;
+        }
+      })
+      .filter(Boolean) as Array<{ userId: string; userName: string; referralCode: string; referralCount: number; totalRewardEarned: number; referrers: any[] }>;
+  }, [users]);
+
+  return (
+    <Panel title="Referral tracking" description="Monitor referral codes, enrollments, and earned rewards across the platform.">
+      {referralEntries.length === 0 ? (
+        <div className="p-6 text-sm text-gray-500">No referral accounts have been created yet.</div>
+      ) : (
+        <div className="space-y-4 p-5">
+          {referralEntries.map((entry) => (
+            <div key={entry.userId} className="rounded-2xl border border-[#1c3026] bg-[#07110d] p-4">
+              <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <p className="font-medium">{entry.userName}</p>
+                  <p className="text-sm text-gray-500">Code: {entry.referralCode}</p>
+                </div>
+                <div className="flex flex-wrap gap-2 text-sm">
+                  <span className="rounded-full bg-[#43e58c]/10 px-3 py-1 text-[#43e58c]">{entry.referralCount} referrals</span>
+                  <span className="rounded-full bg-amber-400/10 px-3 py-1 text-amber-300">{formatAdminUgx(entry.totalRewardEarned)} earned</span>
+                </div>
+              </div>
+              {entry.referrers.length > 0 ? (
+                <div className="mt-4 space-y-2">
+                  {entry.referrers.map((referrer, index) => (
+                    <div key={`${entry.userId}-${index}`} className="flex items-center justify-between rounded-xl border border-[#1c3026] bg-[#102019] px-3 py-2 text-sm">
+                      <span>{referrer.userName}</span>
+                      <span className="text-gray-400">{formatAdminUgx(referrer.rewardEarned)} reward</span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="mt-4 text-sm text-gray-500">No referrals have been recorded yet for this account.</p>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </Panel>
+  );
 }
 
 function MessagesPanel({
@@ -433,6 +551,10 @@ function Panel({ title, description, children }: { title: string; description: s
 
 function Metric({ title, value, icon }: { title: string; value: string; icon: React.ReactNode }) {
   return <div className="surface lift-on-hover stagger-item rounded-2xl p-5"><div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#43e58c]/10 text-[#43e58c]">{icon}</div><p className="mt-5 text-sm text-gray-500">{title}</p><p className="mt-1 text-2xl font-bold tracking-tight">{value}</p></div>;
+}
+
+function MetricMini({ label, value }: { label: string; value: string }) {
+  return <div className="rounded-xl border border-[#1c3026] bg-[#07110d] p-4"><p className="text-xs uppercase tracking-[0.12em] text-gray-500">{label}</p><p className="mt-2 text-xl font-semibold text-white">{value}</p></div>;
 }
 
 function ActionCard({ title, description, icon, onClick }: { title: string; description: string; icon: React.ReactNode; onClick: () => void }) {
