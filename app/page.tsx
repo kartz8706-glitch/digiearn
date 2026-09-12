@@ -10,6 +10,7 @@ import {
   WalletCards,
 } from "lucide-react";
 import ThemeToggle from "@/components/ThemeToggle";
+import ConversationPanel from "@/components/ConversationPanel";
 
 const marketRows = [
   ["UGX 0.00", "Available balance", "Ready"],
@@ -218,6 +219,17 @@ export default function Home() {
             Create your workspace <ArrowRight size={18} className="ml-2" />
           </Link>
         </div>
+      </section>
+
+      <section className="relative z-10 mx-auto max-w-5xl px-6 pb-16 pt-4">
+        <ConversationPanel
+          userId="support-public"
+          currentUserId="support-public"
+          currentUserName="Guest"
+          currentRole="user"
+          heading="Customer service"
+          description="Chat directly with the digi.earn admin team."
+        />
       </section>
 
       <footer className="relative z-10 border-t border-[#1c3026] px-6 py-8 text-center text-sm text-gray-600">

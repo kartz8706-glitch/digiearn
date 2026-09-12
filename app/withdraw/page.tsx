@@ -2,6 +2,7 @@
 
 import Navbar from "@/components/Navbar";
 import Sidebar from "@/components/Sidebar";
+import ConversationPanel from "@/components/ConversationPanel";
 import {
   addAdminRequest,
   adminStateEvent,
@@ -10,8 +11,10 @@ import {
   formatAdminUgx,
 } from "@/lib/adminStore";
 import { firebaseAuth } from "@/lib/firebase";
+import { fetchUserProfile } from "@/lib/firestoreData";
 import { readBalance, investmentStateEvent, formatUgx } from "@/lib/investmentStore";
 import { CheckCircle, AlertCircle, Clock } from "lucide-react";
+import { onAuthStateChanged } from "firebase/auth";
 import { useEffect, useState } from "react";
 
 export default function WithdrawPage() {
@@ -19,6 +22,10 @@ export default function WithdrawPage() {
   const [balance, setBalance] = useState(0);
   const [message, setMessage] = useState("");
   const [allRequests, setAllRequests] = useState<AdminRequest[]>([]);
+  const [confirmingWithdrawal, setConfirmingWithdrawal] = useState(false);
+  const [pendingWithdrawalValue, setPendingWithdrawalValue] = useState(0);
+  const [currentUserId, setCurrentUserId] = useState("");
+  const [userName, setUserName] = useState("Digi User");
 
   useEffect(() => {
     const updateBalance = () => setBalance(readBalance());
@@ -54,6 +61,15 @@ export default function WithdrawPage() {
     };
   }, []);
 
+  useEffect(() => {
+    return onAuthStateChanged(firebaseAuth, async (user) => {
+      if (!user) return;
+      setCurrentUserId(user.uid);
+      const profile = await fetchUserProfile<{ name?: string } | null>(user.uid, null);
+      setUserName(profile?.name || user.displayName || "Digi User");
+    });
+  }, []);
+
   const pendingRequests = allRequests.filter((r) => r.status === "Pending");
   const completedRequests = allRequests.filter((r) => r.status === "Completed");
   const rejectedRequests = allRequests.filter((r) => r.status === "Rejected");
@@ -62,16 +78,32 @@ export default function WithdrawPage() {
     const value = Number(amount);
     if (!value || value < 100000) {
       setMessage("The minimum withdrawal is UGX 100,000.");
+      setConfirmingWithdrawal(false);
+      setPendingWithdrawalValue(0);
       return;
     }
 
     if (value > balance) {
       setMessage("Enter an amount within your available balance.");
+      setConfirmingWithdrawal(false);
+      setPendingWithdrawalValue(0);
       return;
     }
 
-    addAdminRequest({ user: "Digi User", type: "Withdrawal", amount: value });
+    setPendingWithdrawalValue(value);
+    setConfirmingWithdrawal(true);
+    setMessage(`Please confirm: request ${formatAdminUgx(value)} waiting for approval.`);
+  }
+
+  function confirmWithdrawalRequest() {
+    if (!pendingWithdrawalValue) {
+      return;
+    }
+
+    addAdminRequest({ user: "Digi User", type: "Withdrawal", amount: pendingWithdrawalValue });
     setAmount("");
+    setPendingWithdrawalValue(0);
+    setConfirmingWithdrawal(false);
     setMessage("Withdrawal request submitted for admin approval.");
   }
 
@@ -110,11 +142,45 @@ export default function WithdrawPage() {
               className="mt-2 w-full rounded-xl border border-[#1c3026] bg-[#07110d] p-4 outline-none focus:border-[#43e58c] focus:ring-2 focus:ring-[#43e58c]/20 transition"
             />
 
-            <button onClick={submitWithdrawal} className="mt-5 w-full rounded-xl bg-[#43e58c] p-4 font-semibold text-black hover:bg-[#c7f36b] transition transform hover:-translate-y-0.5">
-              Withdraw UGX {amount || "0.00"}
-            </button>
+            {confirmingWithdrawal ? (
+              <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                <button
+                  onClick={confirmWithdrawalRequest}
+                  className="rounded-xl bg-[#43e58c] p-4 font-semibold text-black hover:bg-[#c7f36b] transition transform hover:-translate-y-0.5"
+                >
+                  Confirm withdrawal
+                </button>
+                <button
+                  onClick={() => {
+                    setConfirmingWithdrawal(false);
+                    setPendingWithdrawalValue(0);
+                    setMessage("Withdrawal request cancelled.");
+                  }}
+                  className="rounded-xl border border-[#1c3026] p-4 font-semibold text-gray-300 hover:border-[#43e58c]/50 hover:bg-[#102019] transition"
+                >
+                  Cancel
+                </button>
+              </div>
+            ) : (
+              <button onClick={submitWithdrawal} className="mt-5 w-full rounded-xl bg-[#43e58c] p-4 font-semibold text-black hover:bg-[#c7f36b] transition transform hover:-translate-y-0.5">
+                Withdraw UGX {amount || "0.00"}
+              </button>
+            )}
             {message && <p className="mt-3 text-sm text-[#43e58c] animate-pulse">{message}</p>}
           </div>
+
+          {currentUserId && (
+            <div className="mt-8">
+              <ConversationPanel
+                userId={currentUserId}
+                currentUserId={currentUserId}
+                currentUserName={userName}
+                currentRole="user"
+                heading="Customer service"
+                description="Chat directly with the digi.earn admin team."
+              />
+            </div>
+          )}
 
           {/* Completed Withdrawals */}
           {completedRequests.length > 0 && (
@@ -148,6 +214,7 @@ export default function WithdrawPage() {
                 <Clock size={20} className="text-amber-300" />
                 <h2 className="text-lg font-semibold text-amber-300">Pending Approval</h2>
               </div>
+              <p className="mb-4 text-sm text-amber-100/90">View the message below to confirm your withdrawal is waiting for approval.</p>
               <div className="space-y-3">
                 {pendingRequests.map((request) => (
                   <div key={request.id} className="rounded-lg border border-amber-300/20 bg-amber-300/5 p-4">

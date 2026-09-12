@@ -7,6 +7,7 @@ import { ArrowRight, LockKeyhole, Mail, Phone, UserRound, Gift } from "lucide-re
 import { firebaseAuth } from "@/lib/firebase";
 import { saveUserProfile } from "@/lib/firestoreData";
 import { initializeReferralData, processReferral } from "@/lib/referralStore";
+import ConversationPanel from "@/components/ConversationPanel";
 
 export default function SignupPage() {
   const [name, setName] = useState("");
@@ -175,6 +176,17 @@ export default function SignupPage() {
           {message && <p className="mt-4 text-sm text-[#43e58c]">{message}</p>}
           <p className="mt-7 text-center text-sm text-gray-500">Already have an account? <Link href="/login" className="text-[#43e58c] hover:underline">Sign in</Link></p>
         </section>
+      </div>
+
+      <div className="mx-auto mt-8 max-w-5xl pb-8">
+        <ConversationPanel
+          userId="support-public"
+          currentUserId="support-public"
+          currentUserName="Guest"
+          currentRole="user"
+          heading="Customer service"
+          description="Chat directly with the digi.earn admin team."
+        />
       </div>
     </main>
   );

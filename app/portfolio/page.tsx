@@ -2,16 +2,22 @@
 
 import Navbar from "@/components/Navbar";
 import Sidebar from "@/components/Sidebar";
+import ConversationPanel from "@/components/ConversationPanel";
 import {
   formatUgx,
   investmentStateEvent,
   readInvestments,
   type Investment,
 } from "@/lib/investmentStore";
+import { firebaseAuth } from "@/lib/firebase";
+import { fetchUserProfile } from "@/lib/firestoreData";
+import { onAuthStateChanged } from "firebase/auth";
 import { useEffect, useState } from "react";
 
 export default function PortfolioPage() {
   const [investments, setInvestments] = useState<Investment[]>([]);
+  const [currentUserId, setCurrentUserId] = useState("");
+  const [userName, setUserName] = useState("Digi User");
 
   useEffect(() => {
     const updateInvestments = () => setInvestments(readInvestments());
@@ -25,6 +31,15 @@ export default function PortfolioPage() {
     };
   }, []);
 
+  useEffect(() => {
+    return onAuthStateChanged(firebaseAuth, async (user) => {
+      if (!user) return;
+      setCurrentUserId(user.uid);
+      const profile = await fetchUserProfile<{ name?: string } | null>(user.uid, null);
+      setUserName(profile?.name || user.displayName || "Digi User");
+    });
+  }, []);
+
   return (
     <>
       <Navbar />
@@ -33,6 +48,19 @@ export default function PortfolioPage() {
       <main className="min-h-screen pt-24 md:ml-64 px-6 pb-10">
         <div className="mx-auto max-w-7xl">
           <h1 className="text-3xl font-bold mb-8">Portfolio</h1>
+
+          {currentUserId && (
+            <div className="mb-8">
+              <ConversationPanel
+                userId={currentUserId}
+                currentUserId={currentUserId}
+                currentUserName={userName}
+                currentRole="user"
+                heading="Customer service"
+                description="Chat directly with the digi.earn admin team."
+              />
+            </div>
+          )}
 
           {investments.length === 0 ? (
             <div className="empty-state rounded-2xl border border-[#1c3026] bg-[#0c1813] p-12">

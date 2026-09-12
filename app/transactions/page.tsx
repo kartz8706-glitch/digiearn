@@ -2,6 +2,7 @@
 
 import Navbar from "@/components/Navbar";
 import Sidebar from "@/components/Sidebar";
+import ConversationPanel from "@/components/ConversationPanel";
 import { formatUgx } from "@/lib/investmentStore";
 import {
   readTransactions,
@@ -9,10 +10,15 @@ import {
   transactionStateEvent,
   type Transaction,
 } from "@/lib/transactionStore";
+import { firebaseAuth } from "@/lib/firebase";
+import { fetchUserProfile } from "@/lib/firestoreData";
+import { onAuthStateChanged } from "firebase/auth";
 import { useEffect, useState } from "react";
 
 export default function TransactionsPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [currentUserId, setCurrentUserId] = useState("");
+  const [userName, setUserName] = useState("Digi User");
 
   useEffect(() => {
     const updateTransactions = () => {
@@ -30,6 +36,15 @@ export default function TransactionsPage() {
     };
   }, []);
 
+  useEffect(() => {
+    return onAuthStateChanged(firebaseAuth, async (user) => {
+      if (!user) return;
+      setCurrentUserId(user.uid);
+      const profile = await fetchUserProfile<{ name?: string } | null>(user.uid, null);
+      setUserName(profile?.name || user.displayName || "Digi User");
+    });
+  }, []);
+
   return (
     <>
       <Navbar />
@@ -38,6 +53,19 @@ export default function TransactionsPage() {
       <main className="min-h-screen px-6 pt-24 md:ml-64">
         <div className="mx-auto max-w-7xl">
           <h1 className="text-3xl font-bold">Transactions</h1>
+
+          {currentUserId && (
+            <div className="mt-8">
+              <ConversationPanel
+                userId={currentUserId}
+                currentUserId={currentUserId}
+                currentUserName={userName}
+                currentRole="user"
+                heading="Customer service"
+                description="Chat directly with the digi.earn admin team."
+              />
+            </div>
+          )}
 
           <div className="mt-8 rounded-2xl border border-[#1c3026] bg-[#0c1813]">
             {transactions.length === 0 && (

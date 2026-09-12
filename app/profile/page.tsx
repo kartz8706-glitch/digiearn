@@ -2,6 +2,7 @@
 
 import Navbar from "@/components/Navbar";
 import Sidebar from "@/components/Sidebar";
+import ConversationPanel from "@/components/ConversationPanel";
 import { onAuthStateChanged } from "firebase/auth";
 import { FormEvent, useEffect, useState } from "react";
 import { firebaseAuth } from "@/lib/firebase";
@@ -12,15 +13,19 @@ type Profile = { name?: string; email?: string; phone?: string };
 export default function ProfilePage() {
   const [profile, setProfile] = useState<Profile>({});
   const [message, setMessage] = useState("");
+  const [currentUserId, setCurrentUserId] = useState("");
+  const [userName, setUserName] = useState("Digi User");
 
   useEffect(() => onAuthStateChanged(firebaseAuth, async (user) => {
     if (!user) return;
+    setCurrentUserId(user.uid);
     const stored = await fetchUserProfile<Profile>(user.uid, {});
     setProfile({
       name: stored.name || user.displayName || "",
       email: stored.email || user.email || "",
       phone: stored.phone || "",
     });
+    setUserName(stored.name || user.displayName || "Digi User");
   }), []);
 
   async function save(event: FormEvent) {
@@ -40,6 +45,18 @@ export default function ProfilePage() {
     <main className="min-h-screen px-6 pt-24">
       <div className="mx-auto max-w-3xl">
         <h1 className="text-3xl font-bold">Profile</h1>
+        {currentUserId && (
+          <div className="mt-8">
+            <ConversationPanel
+              userId={currentUserId}
+              currentUserId={currentUserId}
+              currentUserName={userName}
+              currentRole="user"
+              heading="Customer service"
+              description="Chat directly with the digi.earn admin team."
+            />
+          </div>
+        )}
         <form onSubmit={save} className="mt-8 rounded-2xl border border-[#1c3026] bg-[#0c1813] p-6">
           <div className="flex items-center gap-5">
             <div className="flex h-20 w-20 items-center justify-center rounded-full bg-[#43e58c] text-3xl font-bold text-black">{(profile.name || "D").charAt(0).toUpperCase()}</div>

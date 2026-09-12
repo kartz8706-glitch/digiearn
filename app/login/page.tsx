@@ -11,6 +11,7 @@ import {
   UserRound,
 } from "lucide-react";
 import { firebaseAuth } from "@/lib/firebase";
+import ConversationPanel from "@/components/ConversationPanel";
 
 const adminEmail = "kartz8706@gmail.com";
 
@@ -136,6 +137,17 @@ export default function LoginPage() {
           {message && <p className="mt-4 text-sm text-[#43e58c]">{message}</p>}
           <p className="mt-7 text-center text-sm text-gray-500">New to digi.earn? <Link href="/signup" className="text-[#43e58c] hover:underline">Create an account</Link></p>
         </section>
+      </div>
+
+      <div className="mx-auto mt-8 max-w-5xl pb-8">
+        <ConversationPanel
+          userId="support-public"
+          currentUserId="support-public"
+          currentUserName="Guest"
+          currentRole="user"
+          heading="Customer service"
+          description="Chat directly with the digi.earn admin team."
+        />
       </div>
     </main>
   );

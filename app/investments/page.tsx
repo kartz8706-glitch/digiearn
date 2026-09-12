@@ -2,6 +2,7 @@
 
 import Navbar from "@/components/Navbar";
 import Sidebar from "@/components/Sidebar";
+import ConversationPanel from "@/components/ConversationPanel";
 import {
   formatUgx,
   investmentStateEvent,
@@ -14,7 +15,10 @@ import {
   readAdminInvestments,
   type AdminInvestment,
 } from "@/lib/adminStore";
+import { firebaseAuth } from "@/lib/firebase";
+import { fetchUserProfile } from "@/lib/firestoreData";
 import { fetchFromDatabase } from "@/lib/firebaseData";
+import { onAuthStateChanged } from "firebase/auth";
 import { useEffect, useState } from "react";
 
 function toInvestmentArray(
@@ -30,6 +34,8 @@ export default function InvestmentsPage() {
   const [investments, setInvestments] = useState<AdminInvestment[]>([]);
   const [amounts, setAmounts] = useState<Record<string, string>>({});
   const [message, setMessage] = useState("");
+  const [currentUserId, setCurrentUserId] = useState("");
+  const [userName, setUserName] = useState("Digi User");
 
   useEffect(() => {
     const updateBalance = () => {
@@ -65,6 +71,15 @@ export default function InvestmentsPage() {
       window.removeEventListener(adminStateEvent, updateInvestments);
       window.removeEventListener("firebase-auth-state-changed", updateInvestments);
     };
+  }, []);
+
+  useEffect(() => {
+    return onAuthStateChanged(firebaseAuth, async (user) => {
+      if (!user) return;
+      setCurrentUserId(user.uid);
+      const profile = await fetchUserProfile<{ name?: string } | null>(user.uid, null);
+      setUserName(profile?.name || user.displayName || "Digi User");
+    });
   }, []);
 
 function handleInvest(investment: AdminInvestment) {
@@ -121,6 +136,19 @@ function handleInvest(investment: AdminInvestment) {
               <p className="mt-3 text-sm text-[#43e58c] animate-pulse">{message}</p>
             )}
           </div>
+
+          {currentUserId && (
+            <div className="mt-8">
+              <ConversationPanel
+                userId={currentUserId}
+                currentUserId={currentUserId}
+                currentUserName={userName}
+                currentRole="user"
+                heading="Customer service"
+                description="Chat directly with the digi.earn admin team."
+              />
+            </div>
+          )}
 
           <div className="mt-8 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {investments.length === 0 && (

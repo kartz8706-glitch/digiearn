@@ -2,6 +2,7 @@
 
 import Navbar from "@/components/Navbar";
 import Sidebar from "@/components/Sidebar";
+import ConversationPanel from "@/components/ConversationPanel";
 import {
   addAdminRequest,
   adminStateEvent,
@@ -10,13 +11,20 @@ import {
   formatAdminUgx,
 } from "@/lib/adminStore";
 import { firebaseAuth } from "@/lib/firebase";
+import { fetchUserProfile } from "@/lib/firestoreData";
 import { CheckCircle, AlertCircle, Clock } from "lucide-react";
-import { useEffect, useState } from "react";
+import { onAuthStateChanged } from "firebase/auth";
+import { useEffect, useRef, useState } from "react";
 
 export default function DepositPage() {
   const [amount, setAmount] = useState("");
   const [message, setMessage] = useState("");
   const [allRequests, setAllRequests] = useState<AdminRequest[]>([]);
+  const [confirmingDeposit, setConfirmingDeposit] = useState(false);
+  const [pendingDepositValue, setPendingDepositValue] = useState(0);
+  const [currentUserId, setCurrentUserId] = useState("");
+  const [userName, setUserName] = useState("Digi User");
+  const depositSoundRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
     const updateRequests = () => {
@@ -39,6 +47,15 @@ export default function DepositPage() {
     };
   }, []);
 
+  useEffect(() => {
+    return onAuthStateChanged(firebaseAuth, async (user) => {
+      if (!user) return;
+      setCurrentUserId(user.uid);
+      const profile = await fetchUserProfile<{ name?: string } | null>(user.uid, null);
+      setUserName(profile?.name || user.displayName || "Digi User");
+    });
+  }, []);
+
   const pendingRequests = allRequests.filter((r) => r.status === "Pending");
   const completedRequests = allRequests.filter((r) => r.status === "Completed");
   const rejectedRequests = allRequests.filter((r) => r.status === "Rejected");
@@ -47,11 +64,40 @@ export default function DepositPage() {
     const value = Number(amount);
     if (!value || value < 10000) {
       setMessage("The minimum deposit is UGX 10,000.");
+      setConfirmingDeposit(false);
+      setPendingDepositValue(0);
       return;
     }
 
-    addAdminRequest({ user: "Digi User", type: "Deposit", amount: value });
+    setPendingDepositValue(value);
+    setConfirmingDeposit(true);
+    setMessage(`Please confirm: request ${formatAdminUgx(value)} waiting for approval.`);
+  }
+
+  function confirmDepositRequest() {
+    if (!pendingDepositValue) {
+      return;
+    }
+
+    addAdminRequest({ user: "Digi User", type: "Deposit", amount: pendingDepositValue });
+
+    if (!depositSoundRef.current) {
+      const sound = new Audio("/cash-register-purchase.mp3");
+      sound.volume = 0.8;
+      sound.play().catch(() => {
+        // Ignore autoplay restrictions until the user first interacts.
+      });
+      depositSoundRef.current = sound;
+    } else {
+      depositSoundRef.current.currentTime = 0;
+      depositSoundRef.current.play().catch(() => {
+        // Ignore autoplay restrictions until the user first interacts.
+      });
+    }
+
     setAmount("");
+    setPendingDepositValue(0);
+    setConfirmingDeposit(false);
     setMessage("Deposit request submitted for admin approval.");
   }
 
@@ -81,11 +127,45 @@ export default function DepositPage() {
               className="mt-2 w-full rounded-xl border border-[#1c3026] bg-[#07110d] p-4 outline-none focus:border-[#43e58c] focus:ring-2 focus:ring-[#43e58c]/20 transition"
             />
 
-            <button onClick={submitDeposit} className="mt-5 w-full rounded-xl bg-[#43e58c] p-4 font-semibold text-black hover:bg-[#c7f36b] transition transform hover:-translate-y-0.5">
-              Deposit UGX {amount || "0.00"}
-            </button>
+            {confirmingDeposit ? (
+              <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                <button
+                  onClick={confirmDepositRequest}
+                  className="rounded-xl bg-[#43e58c] p-4 font-semibold text-black hover:bg-[#c7f36b] transition transform hover:-translate-y-0.5"
+                >
+                  Confirm deposit
+                </button>
+                <button
+                  onClick={() => {
+                    setConfirmingDeposit(false);
+                    setPendingDepositValue(0);
+                    setMessage("Deposit request cancelled.");
+                  }}
+                  className="rounded-xl border border-[#1c3026] p-4 font-semibold text-gray-300 hover:border-[#43e58c]/50 hover:bg-[#102019] transition"
+                >
+                  Cancel
+                </button>
+              </div>
+            ) : (
+              <button onClick={submitDeposit} className="mt-5 w-full rounded-xl bg-[#43e58c] p-4 font-semibold text-black hover:bg-[#c7f36b] transition transform hover:-translate-y-0.5">
+                Deposit UGX {amount || "0.00"}
+              </button>
+            )}
             {message && <p className="mt-3 text-sm text-[#43e58c] animate-pulse">{message}</p>}
           </div>
+
+          {currentUserId && (
+            <div className="mt-8">
+              <ConversationPanel
+                userId={currentUserId}
+                currentUserId={currentUserId}
+                currentUserName={userName}
+                currentRole="user"
+                heading="Customer service"
+                description="Chat directly with the digi.earn admin team."
+              />
+            </div>
+          )}
 
           {/* Completed Deposits */}
           {completedRequests.length > 0 && (
@@ -119,6 +199,7 @@ export default function DepositPage() {
                 <Clock size={20} className="text-amber-300" />
                 <h2 className="text-lg font-semibold text-amber-300">Pending Approval</h2>
               </div>
+              <p className="mb-4 text-sm text-amber-100/90">View the message below to confirm your deposit is waiting for approval.</p>
               <div className="space-y-3">
                 {pendingRequests.map((request) => (
                   <div key={request.id} className="rounded-lg border border-amber-300/20 bg-amber-300/5 p-4">

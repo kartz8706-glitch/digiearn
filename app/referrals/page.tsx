@@ -2,6 +2,7 @@
 
 import Navbar from "@/components/Navbar";
 import Sidebar from "@/components/Sidebar";
+import ConversationPanel from "@/components/ConversationPanel";
 import {
   getUserReferralData,
   initializeReferralData,
@@ -20,10 +21,12 @@ export default function ReferralPage() {
   const [referralData, setReferralData] = useState<ReferralData | null>(null);
   const [copied, setCopied] = useState(false);
   const [userName, setUserName] = useState("User");
+  const [currentUserId, setCurrentUserId] = useState("");
 
   useEffect(() => {
     return firebaseAuth.onAuthStateChanged(async (user) => {
       if (!user) return;
+      setCurrentUserId(user.uid);
 
       const profile = await fetchUserProfile<{ name?: string } | null>(user.uid, null);
       setUserName(profile?.name || user.displayName || "User");
@@ -68,6 +71,19 @@ export default function ReferralPage() {
           <p className="mt-2 text-gray-500">
             Invite friends and earn rewards when they join and invest.
           </p>
+
+          {currentUserId && (
+            <div className="mt-8">
+              <ConversationPanel
+                userId={currentUserId}
+                currentUserId={currentUserId}
+                currentUserName={userName}
+                currentRole="user"
+                heading="Customer service"
+                description="Chat directly with the digi.earn admin team."
+              />
+            </div>
+          )}
 
           {referralData && (
             <>

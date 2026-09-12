@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import BackgroundAudio from "@/components/BackgroundAudio";
 import FirebaseAnalytics from "@/components/FirebaseAnalytics";
 import MoneyBillBackground from "@/components/MoneyBillBackground";
 import NotificationCenter from "@/components/NotificationCenter";
@@ -29,6 +30,7 @@ export default function RootLayout({
       </head>
       <body>
         <FirebaseAnalytics />
+        <BackgroundAudio />
         <MoneyBillBackground />
         <NotificationCenter />
         <RealtimeSync />
