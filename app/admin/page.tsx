@@ -40,6 +40,22 @@ import ConversationPanel from "@/components/ConversationPanel";
 
 type AdminTab = "overview" | "users" | "investments" | "requests" | "history" | "referrals" | "messages";
 
+const adminPendingReviewEmail = "hsha55403@gmail.com";
+const adminPendingReminderKey = "admin-pending-review-key";
+
+function sendAdminPendingReviewEmail(pendingRequests: AdminRequest[]) {
+  const summary = pendingRequests
+    .map((request) => `${request.type} · ${request.user} · ${formatAdminUgx(request.amount)}`)
+    .join("\n");
+
+  const subject = encodeURIComponent("Pending review: admin approval required");
+  const body = encodeURIComponent(
+    `Hello,\n\nThe following requests are currently pending review in the admin dashboard:\n\n${summary}\n\nPlease review them as soon as possible.\n\nRegards,\nDigi.earn Admin System`
+  );
+
+  window.location.href = `mailto:${adminPendingReviewEmail}?subject=${subject}&body=${body}`;
+}
+
 export default function AdminDashboard() {
   const [tab, setTab] = useState<AdminTab>("overview");
   const [users, setUsers] = useState<AdminUser[]>([]);
@@ -94,6 +110,39 @@ export default function AdminDashboard() {
       window.clearInterval(refreshInterval);
     };
   }, []);
+
+  useEffect(() => {
+    const pending = requests.filter((request) => request.status === "Pending");
+
+    if (pending.length === 0) {
+      window.localStorage.removeItem(adminPendingReminderKey);
+      return;
+    }
+
+    const pendingKey = pending
+      .map((request) => request.id)
+      .sort()
+      .join("|");
+
+    const lastKey = window.localStorage.getItem(adminPendingReminderKey);
+
+    if (lastKey !== pendingKey) {
+      sendAdminPendingReviewEmail(pending);
+      window.localStorage.setItem(adminPendingReminderKey, pendingKey);
+    }
+
+    const reminderTimer = window.setInterval(() => {
+      const latestPending = requests.filter((request) => request.status === "Pending");
+      if (latestPending.length === 0) {
+        window.localStorage.removeItem(adminPendingReminderKey);
+        return;
+      }
+
+      sendAdminPendingReviewEmail(latestPending);
+    }, 10 * 60 * 1000);
+
+    return () => window.clearInterval(reminderTimer);
+  }, [requests]);
 
   useEffect(() => {
     return onAuthStateChanged(firebaseAuth, async (user) => {
