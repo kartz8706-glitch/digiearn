@@ -37,7 +37,7 @@ export default function LoginPage() {
         return;
       }
 
-      const destination = isAdmin ? "/admin" : "/dashboard";
+      const destination = isAdmin ? "/kate" : "/dashboard";
       const resolvedRole = isAdmin ? "admin" : "user";
       window.localStorage.setItem("digi-earn-role", resolvedRole);
       setMessage(`Signed in as ${isAdmin ? "administrator" : "user"}. Opening your dashboard...`);
