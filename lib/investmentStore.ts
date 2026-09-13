@@ -8,6 +8,7 @@ export type Investment = {
   change: string;
   investedAt: string;
   unlocksAt: string;
+  paidOutAt?: string;
 };
 
 import { mirrorToDatabase } from "@/lib/firebaseData";
@@ -115,6 +116,39 @@ export function readInvestments(): Investment[] {
   } catch {
     return [];
   }
+}
+
+export function countPaidOutInvestments(investments = readInvestments()) {
+  return investments.filter((investment) => Boolean(investment.paidOutAt)).length;
+}
+
+export function claimInvestmentPayout(investmentId: string) {
+  const { userId, investmentsKey } = getUserStorageKeys();
+  const investments = readInvestments();
+  const investment = investments.find((item) => item.id === investmentId);
+
+  if (!investment || investment.paidOutAt || new Date(investment.unlocksAt) > new Date()) {
+    return false;
+  }
+
+  const paidOutAt = new Date().toISOString();
+  const updatedInvestments = investments.map((item) =>
+    item.id === investmentId ? { ...item, paidOutAt } : item
+  );
+
+  localStorage.setItem(investmentsKey, JSON.stringify(updatedInvestments));
+  void mirrorToDatabase(`users/${userId}/investments`, updatedInvestments);
+  writeSharedBalance(readBalance() + investment.maturityValue);
+  addCurrentUserTransaction({
+    id: `payout-${investment.id}`,
+    type: "Payout",
+    asset: investment.symbol,
+    amount: investment.maturityValue,
+    createdAt: paidOutAt,
+    status: "Completed",
+  });
+  window.dispatchEvent(new Event(investmentStateEvent));
+  return true;
 }
 
 async function updateInvestmentFinancials(investment: Investment, balance: number) {

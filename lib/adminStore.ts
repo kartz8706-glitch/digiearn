@@ -7,6 +7,7 @@ import { fetchFromDatabase, mirrorToDatabase } from "@/lib/firebaseData";
 import { firebaseAuth } from "@/lib/firebase";
 import { deleteUserProfile, fetchUserProfile, saveUserProfile } from "@/lib/firestoreData";
 import { addUserTransaction } from "@/lib/transactionStore";
+import type { Investment } from "@/lib/investmentStore";
 
 export type AdminUser = {
   id: string;
@@ -174,6 +175,27 @@ export async function updateRequestStatus(id: string, status: AdminRequest["stat
   const targetUserId = request.userId ?? matchedUser?.id ?? null;
 
   if (request.status === "Pending" && status === "Approved") {
+    if (request.type === "Withdrawal") {
+      const userInvestments = targetUserId
+        ? await fetchFromDatabase<Investment[] | Record<string, Investment>>(
+            `users/${targetUserId}/investments`,
+            []
+          )
+        : [];
+      const paidOutCount = (Array.isArray(userInvestments) ? userInvestments : Object.values(userInvestments))
+        .filter((investment) => Boolean(investment.paidOutAt)).length;
+
+      if (paidOutCount < 5) {
+        await write(
+          requestsKey,
+          requests.map((item) =>
+            item.id === id ? { ...item, status: "Rejected" } : item
+          )
+        );
+        return;
+      }
+    }
+
     const profile = targetUserId
       ? await fetchUserProfile<{
           balance?: number;

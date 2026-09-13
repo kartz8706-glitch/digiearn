@@ -12,7 +12,7 @@ import {
 } from "@/lib/adminStore";
 import { firebaseAuth } from "@/lib/firebase";
 import { fetchUserProfile } from "@/lib/firestoreData";
-import { readBalance, investmentStateEvent, formatUgx } from "@/lib/investmentStore";
+import { countPaidOutInvestments, readBalance, investmentStateEvent, formatUgx } from "@/lib/investmentStore";
 import { CheckCircle, AlertCircle, Clock } from "lucide-react";
 import { onAuthStateChanged } from "firebase/auth";
 import { useEffect, useState } from "react";
@@ -26,9 +26,13 @@ export default function WithdrawPage() {
   const [pendingWithdrawalValue, setPendingWithdrawalValue] = useState(0);
   const [currentUserId, setCurrentUserId] = useState("");
   const [userName, setUserName] = useState("Digi User");
+  const [paidOutInvestments, setPaidOutInvestments] = useState(0);
 
   useEffect(() => {
-    const updateBalance = () => setBalance(readBalance());
+    const updateBalance = () => {
+      setBalance(readBalance());
+      setPaidOutInvestments(countPaidOutInvestments());
+    };
     updateBalance();
     window.addEventListener(investmentStateEvent, updateBalance);
     window.addEventListener(adminStateEvent, updateBalance);
@@ -76,6 +80,13 @@ export default function WithdrawPage() {
 
   function submitWithdrawal() {
     const value = Number(amount);
+    if (paidOutInvestments < 5) {
+      setMessage(`Withdrawals unlock after 5 successful paid-out investments. You have ${paidOutInvestments}/5.`);
+      setConfirmingWithdrawal(false);
+      setPendingWithdrawalValue(0);
+      return;
+    }
+
     if (!value || value < 100000) {
       setMessage("The minimum withdrawal is UGX 100,000.");
       setConfirmingWithdrawal(false);
@@ -120,6 +131,11 @@ export default function WithdrawPage() {
           </p>
 
           <div className="mt-8 glass-card stat-card-hover rounded-2xl p-6">
+            <div className="mb-5 rounded-xl border border-amber-300/20 bg-amber-300/5 p-4">
+              <p className="text-sm text-gray-400">Withdrawal eligibility</p>
+              <p className="mt-1 font-semibold text-amber-200">{paidOutInvestments}/5 successful paid-out investments</p>
+              <p className="mt-1 text-xs text-gray-500">Complete and claim 5 investment payouts before requesting a withdrawal.</p>
+            </div>
             <div className="mb-5 rounded-xl bg-[#43e58c]/10 p-4">
               <p className="text-sm text-gray-400">
                 Available balance

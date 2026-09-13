@@ -51,7 +51,7 @@ export default function TrackerPage() {
             <h1 className="mt-2 text-3xl font-bold">Payout tracker</h1>
             <p className="mt-2 text-gray-500">See exactly how long each locked investment has before payout.</p>
           </div>
-          <InvestmentTracker investments={investments} />
+          <InvestmentTracker investments={investments} allowPayout />
           {currentUserId && (
             <div className="mt-8">
               <ConversationPanel

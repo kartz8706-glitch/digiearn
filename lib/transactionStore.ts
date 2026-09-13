@@ -4,7 +4,7 @@ import { fetchUserProfile, saveUserProfile } from "@/lib/firestoreData";
 
 export type Transaction = {
   id: string;
-  type: "Deposit" | "Withdrawal" | "Investment";
+  type: "Deposit" | "Withdrawal" | "Investment" | "Payout";
   asset: string;
   amount: number;
   createdAt: string;
