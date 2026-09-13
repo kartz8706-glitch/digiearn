@@ -3,6 +3,7 @@
 import Navbar from "@/components/Navbar";
 import Sidebar from "@/components/Sidebar";
 import ConversationPanel from "@/components/ConversationPanel";
+import InvestmentTracker from "@/components/InvestmentTracker";
 import {
   formatUgx,
   investmentStateEvent,
@@ -78,6 +79,10 @@ export default function PortfolioPage() {
               </a>
             </div>
           ) : (
+            <>
+            <div className="mb-8">
+              <InvestmentTracker investments={investments} allowPayout />
+            </div>
             <div className="overflow-hidden rounded-2xl border border-[#1c3026] bg-[#0c1813] hidden md:block">
               <div className="grid grid-cols-4 border-b border-[#1c3026] p-5 text-sm text-gray-500">
                 <span>Asset</span>
@@ -114,6 +119,7 @@ export default function PortfolioPage() {
                 );
               })}
             </div>
+            </>
           )}
 
           {/* Mobile Card View */}
