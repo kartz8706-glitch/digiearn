@@ -389,7 +389,10 @@ function UsersPanelContent({ users, loading, error }: { users: AdminUser[]; load
     {!loading && !error && users.length === 0 && <p className="p-5 text-sm text-gray-500">No users found in Firestore.</p>}
     <div className="divide-y divide-[#1c3026]">
       {users.map((user) => (
-        <div key={user.id} className="flex flex-col gap-4 p-5">
+        <div
+          key={user.id}
+          className={`mx-3 my-2 flex flex-col gap-4 rounded-xl border p-5 transition-colors ${user.online ? "border-[#43e58c]/60 bg-[#43e58c]/10 shadow-[0_0_22px_rgba(67,229,140,0.12)]" : "border-[#1c3026] bg-[#07110d]/40"}`}
+        >
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <div>
