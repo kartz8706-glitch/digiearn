@@ -15,6 +15,9 @@ export type AdminUser = {
   email: string;
   balance: number;
   phone?: string;
+  createdAt?: string;
+  online?: boolean;
+  lastSeen?: string | number;
   portfolioValue?: number;
   totalInvested?: number;
   availableBalance?: number;
@@ -39,6 +42,7 @@ export type AdminRequest = {
   amount: number;
   status: "Pending" | "Approved" | "Rejected" | "Completed";
   createdAt: string;
+  requestedAt?: string;
 };
 
 export const adminStateEvent = "admin-state-changed";
@@ -91,6 +95,7 @@ export function addAdminUser(user: Omit<AdminUser, "id" | "balance" | "status">)
     ...user,
     id: `user-${Date.now()}`,
     balance: 0,
+    createdAt: user.createdAt ?? new Date().toISOString(),
     status: "Active" as const,
   };
   write(usersKey, [...readAdminUsers(), createdUser]);
@@ -106,6 +111,7 @@ export function addAdminInvestment(investment: Omit<AdminInvestment, "id" | "sta
 
 export function addAdminRequest(request: Omit<AdminRequest, "id" | "status" | "createdAt">) {
   const currentUser = firebaseAuth.currentUser;
+  const requestedAt = new Date().toISOString();
   write(requestsKey, [
     ...readAdminRequests(),
     {
@@ -114,7 +120,8 @@ export function addAdminRequest(request: Omit<AdminRequest, "id" | "status" | "c
       user: currentUser?.displayName || request.user,
       id: `request-${Date.now()}`,
       status: "Pending",
-      createdAt: "Just now",
+      createdAt: requestedAt,
+      requestedAt,
     },
   ]);
 }
@@ -281,4 +288,16 @@ export function formatAdminUgx(amount: number) {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })}`;
+}
+
+export function formatAdminDateTime(value?: string | number | null) {
+  if (!value) return "Not recorded";
+
+  const date = typeof value === "number" ? new Date(value) : new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value);
+
+  return date.toLocaleString("en-UG", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  });
 }

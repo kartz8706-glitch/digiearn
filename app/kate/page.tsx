@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { onAuthStateChanged, sendPasswordResetEmail } from "firebase/auth";
+import { onValue, ref } from "firebase/database";
 import {
   ArrowDownToLine,
   ArrowUpFromLine,
@@ -24,6 +25,7 @@ import {
   adminStateEvent,
   deleteAdminInvestment,
   deleteAdminUser,
+  formatAdminDateTime,
   formatAdminUgx,
   updateAdminUserBalance,
   updateAdminUserFinancials,
@@ -35,13 +37,14 @@ import {
 } from "@/lib/adminStore";
 import { fetchFromDatabase } from "@/lib/firebaseData";
 import { fetchFirestoreUsers, fetchUserProfile } from "@/lib/firestoreData";
-import { firebaseAuth } from "@/lib/firebase";
+import { firebaseAuth, realtimeDatabase } from "@/lib/firebase";
 import ThemeToggle from "@/components/ThemeToggle";
 import ConversationPanel from "@/components/ConversationPanel";
 import InvestmentTracker from "@/components/InvestmentTracker";
 import type { Investment } from "@/lib/investmentStore";
 
 type AdminTab = "overview" | "users" | "investments" | "trackers" | "requests" | "history" | "referrals" | "messages";
+type UserPresence = Record<string, { state?: "online" | "offline"; lastChanged?: string | number }>;
 
 const adminPendingReminderKey = "admin-pending-review-key";
 
@@ -73,6 +76,20 @@ export default function AdminDashboard() {
   const [usersError, setUsersError] = useState("");
   const [selectedUserId, setSelectedUserId] = useState("");
   const [newUserNotice, setNewUserNotice] = useState(false);
+  const [presence, setPresence] = useState<UserPresence>({});
+
+  const usersWithPresence = useMemo(
+    () =>
+      users.map((user) => {
+        const userPresence = presence[user.id];
+        return {
+          ...user,
+          online: userPresence?.state === "online",
+          lastSeen: userPresence?.lastChanged ?? user.lastSeen,
+        };
+      }),
+    [presence, users]
+  );
 
   useEffect(() => {
     const showNewUserNotice = () => setNewUserNotice(true);
@@ -116,6 +133,14 @@ export default function AdminDashboard() {
       window.removeEventListener(adminStateEvent, refresh);
       window.clearInterval(refreshInterval);
     };
+  }, []);
+
+  useEffect(() => {
+    const unsubscribe = onValue(ref(realtimeDatabase, "status"), (snapshot) => {
+      setPresence(snapshot.exists() ? (snapshot.val() as UserPresence) : {});
+    });
+
+    return () => unsubscribe();
   }, []);
 
   useEffect(() => {
@@ -216,16 +241,16 @@ export default function AdminDashboard() {
             <AdminNavButton active={tab === "messages"} onClick={() => setTab("messages")} icon={<MessageCircle size={17} />}>Messages</AdminNavButton>
           </div>
 
-          {tab === "overview" && <Overview users={users} investments={investments} requests={requests} setTab={setTab} />}
-          {tab === "users" && <UsersPanel users={users} loading={usersLoading} error={usersError} />}
+          {tab === "overview" && <Overview users={usersWithPresence} investments={investments} requests={requests} setTab={setTab} />}
+          {tab === "users" && <UsersPanel users={usersWithPresence} loading={usersLoading} error={usersError} />}
           {tab === "investments" && <InvestmentsPanel investments={investments} />}
-          {tab === "trackers" && <InvestmentTrackingPanel users={users} />}
+          {tab === "trackers" && <InvestmentTrackingPanel users={usersWithPresence} />}
           {tab === "requests" && <RequestsPanel requests={requests.filter((request) => request.status === "Pending")} />}
           {tab === "history" && <HistoryPanel requests={requests.filter((request) => request.status !== "Pending")} />}
-          {tab === "referrals" && <ReferralsPanel users={users} />}
+          {tab === "referrals" && <ReferralsPanel users={usersWithPresence} />}
           {tab === "messages" && (
             <MessagesPanel
-              users={users}
+              users={usersWithPresence}
               selectedUserId={selectedUserId}
               onSelectUser={setSelectedUserId}
               adminId={firebaseAuth.currentUser?.uid || "admin"}
@@ -240,6 +265,7 @@ export default function AdminDashboard() {
 
 function Overview({ users, investments, requests, setTab }: { users: AdminUser[]; investments: AdminInvestment[]; requests: AdminRequest[]; setTab: (tab: AdminTab) => void }) {
   const pending = requests.filter((request) => request.status === "Pending").length;
+  const onlineUsers = users.filter((user) => user.online).length;
   const totalBalance = users.reduce((total, user) => total + user.balance, 0);
   const referralSummary = useMemo(() => {
     if (typeof window === "undefined") return { total: 0, active: 0, reward: 0 };
@@ -267,8 +293,9 @@ function Overview({ users, investments, requests, setTab }: { users: AdminUser[]
   }, [users.length, requests.length]);
 
   return <>
-    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-6">
       <Metric title="Users" value={String(users.length)} icon={<Users size={20} />} />
+      <Metric title="Online now" value={`${onlineUsers} / ${users.length}`} highlight icon={<span className="h-3 w-3 rounded-full bg-[#43e58c] shadow-[0_0_10px_#43e58c]" />} />
       <Metric title="User balances" value={formatAdminUgx(totalBalance)} icon={<WalletIcon />} />
       <Metric title="Investment products" value={String(investments.length)} icon={<TrendingUp size={20} />} />
       <Metric title="Pending approvals" value={String(pending)} icon={<ShieldCheck size={20} />} />
@@ -317,7 +344,6 @@ function UsersPanelContent({ users, loading, error }: { users: AdminUser[]; load
   const [email, setEmail] = useState("");
   const [resetMessage, setResetMessage] = useState("");
   const [editingBalance, setEditingBalance] = useState<string | null>(null);
-  const [balanceValue, setBalanceValue] = useState("");
   const [financialValues, setFinancialValues] = useState<Record<string, { portfolioValue: string; totalInvested: string; availableBalance: string; todaysReturn: string }>>({});
 
   function submit(event: FormEvent) {
@@ -362,9 +388,43 @@ function UsersPanelContent({ users, loading, error }: { users: AdminUser[]; load
       {resetMessage && <p className="border-b border-[#1c3026] p-5 text-sm text-[#43e58c]">{resetMessage}</p>}
     {!loading && !error && users.length === 0 && <p className="p-5 text-sm text-gray-500">No users found in Firestore.</p>}
     <div className="divide-y divide-[#1c3026]">
-      {users.map((user) => <div key={user.id} className="flex flex-col gap-4 p-5"><div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"><div><p className="font-medium">{user.name}</p><p className="text-sm text-gray-500">{user.email}</p><p className="text-sm text-gray-500">{user.phone || "No phone number saved"}</p><p className="mt-1 text-sm text-[#43e58c]">{formatAdminUgx(user.availableBalance ?? user.balance)}</p></div><div className="flex flex-wrap items-center gap-2"><button onClick={() => void sendResetEmail(user.email)} className="rounded-lg border border-[#43e58c]/40 px-3 py-2 text-sm text-[#43e58c] hover:bg-[#43e58c]/10">Reset password</button><button onClick={() => startFinancialEdit(user)} className="rounded-lg border border-[#1c3026] px-3 py-2 text-sm text-gray-300 hover:border-[#43e58c]/50">Edit financials</button><button onClick={() => updateAdminUserStatus(user.id, user.status === "Active" ? "Suspended" : "Active")} className={`rounded-lg px-3 py-2 text-sm ${user.status === "Active" ? "bg-[#43e58c]/10 text-[#43e58c]" : "bg-red-500/10 text-red-400"}`}>{user.status === "Active" ? "Suspend" : "Activate"}</button><button onClick={() => deleteAdminUser(user.id)} aria-label={`Delete ${user.name}`} className="rounded-lg p-2 text-red-300 hover:bg-red-400/10"><Trash2 size={17} /></button></div></div>{editingBalance === user.id && <div className="grid gap-3 rounded-xl border border-[#1c3026] bg-[#07110d]/60 p-4 sm:grid-cols-2"><FinancialInput label="Portfolio value" value={financialValues[user.id]?.portfolioValue || ""} onChange={(value) => setFinancialValues({ ...financialValues, [user.id]: { ...financialValues[user.id], portfolioValue: value } })} /><FinancialInput label="Total invested" value={financialValues[user.id]?.totalInvested || ""} onChange={(value) => setFinancialValues({ ...financialValues, [user.id]: { ...financialValues[user.id], totalInvested: value } })} /><FinancialInput label="Available balance" value={financialValues[user.id]?.availableBalance || ""} onChange={(value) => setFinancialValues({ ...financialValues, [user.id]: { ...financialValues[user.id], availableBalance: value } })} /><FinancialInput label="Today's return" value={financialValues[user.id]?.todaysReturn || ""} onChange={(value) => setFinancialValues({ ...financialValues, [user.id]: { ...financialValues[user.id], todaysReturn: value } })} /><button onClick={() => { const values = financialValues[user.id]; if (!values || Object.values(values).some((value) => Number(value) < 0 || value === "")) return; updateAdminUserFinancials(user.id, { portfolioValue: Number(values.portfolioValue), totalInvested: Number(values.totalInvested), availableBalance: Number(values.availableBalance), todaysReturn: Number(values.todaysReturn) }); setEditingBalance(null); }} className="rounded-lg bg-[#43e58c] px-3 py-2 text-sm font-semibold text-black sm:col-span-2">Save financials</button></div>}</div>)}
+      {users.map((user) => (
+        <div key={user.id} className="flex flex-col gap-4 p-5">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <div>
+                <p className="font-medium">{user.name}</p>
+                <PresenceBadge online={Boolean(user.online)} />
+              </div>
+              <p className="text-sm text-gray-500">{user.email}</p>
+              <p className="text-sm text-gray-500">{user.phone || "No phone number saved"}</p>
+              <p className="mt-2 text-sm text-gray-400">Added {formatAdminDateTime(user.createdAt)}</p>
+              <p className="text-sm text-gray-400">
+                {user.online ? "Currently online" : `Last seen ${formatAdminDateTime(user.lastSeen)}`}
+              </p>
+              <p className="mt-1 text-sm text-[#43e58c]">{formatAdminUgx(user.availableBalance ?? user.balance)}</p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <button onClick={() => void sendResetEmail(user.email)} className="rounded-lg border border-[#43e58c]/40 px-3 py-2 text-sm text-[#43e58c] hover:bg-[#43e58c]/10">Reset password</button>
+              <button onClick={() => startFinancialEdit(user)} className="rounded-lg border border-[#1c3026] px-3 py-2 text-sm text-gray-300 hover:border-[#43e58c]/50">Edit financials</button>
+              <button onClick={() => updateAdminUserStatus(user.id, user.status === "Active" ? "Suspended" : "Active")} className={`rounded-lg px-3 py-2 text-sm ${user.status === "Active" ? "bg-[#43e58c]/10 text-[#43e58c]" : "bg-red-500/10 text-red-400"}`}>{user.status === "Active" ? "Suspend" : "Activate"}</button>
+              <button onClick={() => deleteAdminUser(user.id)} aria-label={`Delete ${user.name}`} className="rounded-lg p-2 text-red-300 hover:bg-red-400/10"><Trash2 size={17} /></button>
+            </div>
+          </div>
+          {editingBalance === user.id && <div className="grid gap-3 rounded-xl border border-[#1c3026] bg-[#07110d]/60 p-4 sm:grid-cols-2"><FinancialInput label="Portfolio value" value={financialValues[user.id]?.portfolioValue || ""} onChange={(value) => setFinancialValues({ ...financialValues, [user.id]: { ...financialValues[user.id], portfolioValue: value } })} /><FinancialInput label="Total invested" value={financialValues[user.id]?.totalInvested || ""} onChange={(value) => setFinancialValues({ ...financialValues, [user.id]: { ...financialValues[user.id], totalInvested: value } })} /><FinancialInput label="Available balance" value={financialValues[user.id]?.availableBalance || ""} onChange={(value) => setFinancialValues({ ...financialValues, [user.id]: { ...financialValues[user.id], availableBalance: value } })} /><FinancialInput label="Today's return" value={financialValues[user.id]?.todaysReturn || ""} onChange={(value) => setFinancialValues({ ...financialValues, [user.id]: { ...financialValues[user.id], todaysReturn: value } })} /><button onClick={() => { const values = financialValues[user.id]; if (!values || Object.values(values).some((value) => Number(value) < 0 || value === "")) return; updateAdminUserFinancials(user.id, { portfolioValue: Number(values.portfolioValue), totalInvested: Number(values.totalInvested), availableBalance: Number(values.availableBalance), todaysReturn: Number(values.todaysReturn) }); setEditingBalance(null); }} className="rounded-lg bg-[#43e58c] px-3 py-2 text-sm font-semibold text-black sm:col-span-2">Save financials</button></div>}
+        </div>
+      ))}
     </div>
   </Panel>;
+}
+
+function PresenceBadge({ online }: { online: boolean }) {
+  return (
+    <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${online ? "bg-[#43e58c]/10 text-[#43e58c]" : "bg-gray-500/10 text-gray-400"}`}>
+      <span className={`h-2 w-2 rounded-full ${online ? "bg-[#43e58c]" : "bg-gray-500"}`} />
+      {online ? "Online" : "Offline"}
+    </span>
+  );
 }
 
 function FinancialInput({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
@@ -435,7 +495,8 @@ function RequestsPanel({ requests }: { requests: AdminRequest[] }) {
               </div>
               <div>
                 <p className="font-medium">{request.type} · {request.user}</p>
-                <p className="text-sm text-gray-500">{formatAdminUgx(request.amount)} · {request.createdAt}</p>
+                <p className="text-sm text-gray-500">{formatAdminUgx(request.amount)}</p>
+                <p className="text-xs text-gray-500">Requested {formatAdminDateTime(request.requestedAt ?? request.createdAt)}</p>
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -474,7 +535,8 @@ function HistoryPanel({ requests }: { requests: AdminRequest[] }) {
                 </div>
                 <div>
                   <p className="font-medium">{request.type} · {request.user}</p>
-                  <p className="text-sm text-gray-500">{formatAdminUgx(request.amount)} · {request.createdAt}</p>
+                  <p className="text-sm text-gray-500">{formatAdminUgx(request.amount)}</p>
+                  <p className="text-xs text-gray-500">Requested {formatAdminDateTime(request.requestedAt ?? request.createdAt)}</p>
                 </div>
               </div>
               <span className={`inline-flex items-center rounded-lg px-3 py-2 text-sm font-medium ${request.status === "Completed" ? "bg-[#43e58c]/10 text-[#43e58c]" : "bg-red-400/10 text-red-300"}`}>
@@ -676,8 +738,8 @@ function Panel({ title, description, children }: { title: string; description: s
   return <section className="surface lift-on-hover overflow-hidden rounded-2xl"><div className="border-b border-[#1c3026] p-6"><h2 className="font-semibold">{title}</h2><p className="mt-1 text-sm text-gray-500">{description}</p></div>{children}</section>;
 }
 
-function Metric({ title, value, icon }: { title: string; value: string; icon: React.ReactNode }) {
-  return <div className="surface lift-on-hover stagger-item rounded-2xl p-5"><div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#43e58c]/10 text-[#43e58c]">{icon}</div><p className="mt-5 text-sm text-gray-500">{title}</p><p className="mt-1 text-2xl font-bold tracking-tight">{value}</p></div>;
+function Metric({ title, value, icon, highlight = false }: { title: string; value: string; icon: React.ReactNode; highlight?: boolean }) {
+  return <div className={`surface lift-on-hover stagger-item rounded-2xl p-5 ${highlight ? "border-[#43e58c]/50 bg-[#43e58c]/10" : ""}`}><div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#43e58c]/10 text-[#43e58c]">{icon}</div><p className="mt-5 text-sm text-gray-500">{title}</p><p className={`mt-1 text-2xl font-bold tracking-tight ${highlight ? "text-[#43e58c]" : ""}`}>{value}</p></div>;
 }
 
 function MetricMini({ label, value }: { label: string; value: string }) {

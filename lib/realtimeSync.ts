@@ -2,7 +2,7 @@
 
 import { onAuthStateChanged } from "firebase/auth";
 import { doc, onSnapshot } from "firebase/firestore";
-import { onValue, ref } from "firebase/database";
+import { onDisconnect, onValue, ref, serverTimestamp, set } from "firebase/database";
 import { firebaseAuth, firestoreDatabase, realtimeDatabase } from "@/lib/firebase";
 
 const balanceKeyPrefix = "digi-earn-balance";
@@ -38,14 +38,33 @@ export function startRealtimeSync() {
   if (typeof window === "undefined") return () => undefined;
 
   let stopProfile: (() => void) | undefined;
+  let stopPresence: (() => void) | undefined;
   const stopAdminListeners: Array<() => void> = [];
 
   const stopAuth = onAuthStateChanged(firebaseAuth, (user) => {
     stopProfile?.();
     stopProfile = undefined;
+    stopPresence?.();
+    stopPresence = undefined;
     stopAdminListeners.splice(0).forEach((unsubscribe) => unsubscribe());
 
     if (!user) return;
+
+    const userStatusRef = ref(realtimeDatabase, `status/${user.uid}`);
+    const connectedRef = ref(realtimeDatabase, ".info/connected");
+    stopPresence = onValue(connectedRef, (snapshot) => {
+      if (snapshot.val() !== true) return;
+
+      void onDisconnect(userStatusRef).set({
+        state: "offline",
+        lastChanged: serverTimestamp(),
+      });
+
+      void set(userStatusRef, {
+        state: "online",
+        lastChanged: serverTimestamp(),
+      });
+    });
 
     stopProfile = onSnapshot(doc(firestoreDatabase, "users", user.uid), (snapshot) => {
       if (snapshot.exists()) cacheProfile(user.uid, snapshot.data());
@@ -69,6 +88,7 @@ export function startRealtimeSync() {
   return () => {
     stopAuth();
     stopProfile?.();
+    stopPresence?.();
     stopAdminListeners.forEach((unsubscribe) => unsubscribe());
   };
 }
