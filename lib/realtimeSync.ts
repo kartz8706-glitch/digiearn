@@ -15,16 +15,25 @@ function dispatch(name: string) {
 
 function cacheProfile(userId: string, profile: Record<string, unknown>) {
   const balance = Number(profile.availableBalance ?? profile.balance ?? 0);
-  const investments = Array.isArray(profile.investments) ? profile.investments : [];
   const transactions = Array.isArray(profile.transactions) ? profile.transactions : [];
 
   window.localStorage.setItem(`${balanceKeyPrefix}-${userId}`, String(balance));
-  window.localStorage.setItem(`${investmentsKeyPrefix}-${userId}`, JSON.stringify(investments));
   window.localStorage.setItem(`${transactionsKeyPrefix}-${userId}`, JSON.stringify(transactions));
 
   dispatch("investment-state-changed");
   dispatch("transaction-state-changed");
   dispatch("firebase-auth-state-changed");
+}
+
+function cacheInvestments(userId: string, value: unknown) {
+  const investments = Array.isArray(value)
+    ? value
+    : value && typeof value === "object"
+      ? Object.values(value as Record<string, unknown>)
+      : [];
+
+  window.localStorage.setItem(`${investmentsKeyPrefix}-${userId}`, JSON.stringify(investments));
+  dispatch("investment-state-changed");
 }
 
 function cacheAdminData(path: string, value: unknown) {
@@ -38,12 +47,15 @@ export function startRealtimeSync() {
   if (typeof window === "undefined") return () => undefined;
 
   let stopProfile: (() => void) | undefined;
+  let stopInvestments: (() => void) | undefined;
   let stopPresence: (() => void) | undefined;
   const stopAdminListeners: Array<() => void> = [];
 
   const stopAuth = onAuthStateChanged(firebaseAuth, (user) => {
     stopProfile?.();
     stopProfile = undefined;
+    stopInvestments?.();
+    stopInvestments = undefined;
     stopPresence?.();
     stopPresence = undefined;
     stopAdminListeners.splice(0).forEach((unsubscribe) => unsubscribe());
@@ -70,6 +82,11 @@ export function startRealtimeSync() {
       if (snapshot.exists()) cacheProfile(user.uid, snapshot.data());
     });
 
+    stopInvestments = onValue(
+      ref(realtimeDatabase, `users/${user.uid}/investments`),
+      (snapshot) => cacheInvestments(user.uid, snapshot.exists() ? snapshot.val() : [])
+    );
+
     const stopRequests = onValue(ref(realtimeDatabase, "admin/requests"), (snapshot) => {
       cacheAdminData("requests", snapshot.exists() ? snapshot.val() : []);
     });
@@ -88,6 +105,7 @@ export function startRealtimeSync() {
   return () => {
     stopAuth();
     stopProfile?.();
+    stopInvestments?.();
     stopPresence?.();
     stopAdminListeners.forEach((unsubscribe) => unsubscribe());
   };

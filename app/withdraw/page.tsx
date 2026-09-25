@@ -131,11 +131,6 @@ export default function WithdrawPage() {
           </p>
 
           <div className="mt-8 glass-card stat-card-hover rounded-2xl p-6">
-            <div className="mb-5 rounded-xl border border-amber-300/20 bg-amber-300/5 p-4">
-              <p className="text-sm text-gray-400">Withdrawal eligibility</p>
-              <p className="mt-1 font-semibold text-amber-200">{paidOutInvestments}/5 successful paid-out investments</p>
-              <p className="mt-1 text-xs text-gray-500">Complete and claim 5 investment payouts before requesting a withdrawal.</p>
-            </div>
             <div className="mb-5 rounded-xl bg-[#43e58c]/10 p-4">
               <p className="text-sm text-gray-400">
                 Available balance
