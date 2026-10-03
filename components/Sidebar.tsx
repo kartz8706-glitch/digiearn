@@ -13,6 +13,7 @@ import {
   User,
   Settings,
   Gift,
+  Gamepad2,
 } from "lucide-react";
 
 const userLinks = [
@@ -20,6 +21,11 @@ const userLinks = [
     name: "Dashboard",
     href: "/dashboard",
     icon: LayoutDashboard,
+  },
+  {
+    name: "Games",
+    href: "/games",
+    icon: Gamepad2,
   },
   {
     name: "Investments",

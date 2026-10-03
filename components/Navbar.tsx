@@ -9,6 +9,7 @@ import {
   ArrowDownToLine,
   ArrowUpFromLine,
   Bell,
+  Gamepad2,
   Gift,
   LayoutDashboard,
   Menu,
@@ -28,6 +29,7 @@ import { enableNotifications } from "@/lib/notificationService";
 
 const links = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+  { name: "Games", href: "/games", icon: Gamepad2 },
   { name: "Investments", href: "/investments", icon: TrendingUp },
   { name: "Portfolio", href: "/portfolio", icon: Wallet },
   { name: "Payout tracker", href: "/tracker", icon: Timer },

@@ -8,6 +8,7 @@ import {
   ArrowDownToLine,
   ArrowUpFromLine,
   Check,
+  Gamepad2,
   LayoutDashboard,
   MessageCircle,
   Trash2,
@@ -38,13 +39,15 @@ import {
 import { fetchFromDatabase } from "@/lib/firebaseData";
 import { fetchFirestoreUsers, fetchUserProfile } from "@/lib/firestoreData";
 import { firebaseAuth, realtimeDatabase } from "@/lib/firebase";
+import { getAviatorCrashPoint } from "@/lib/aviatorRounds";
 import ThemeToggle from "@/components/ThemeToggle";
 import ConversationPanel from "@/components/ConversationPanel";
 import InvestmentTracker from "@/components/InvestmentTracker";
 import type { Investment } from "@/lib/investmentStore";
 
-type AdminTab = "overview" | "users" | "investments" | "trackers" | "requests" | "history" | "referrals" | "messages";
+type AdminTab = "overview" | "games" | "users" | "investments" | "trackers" | "requests" | "history" | "referrals" | "messages";
 type UserPresence = Record<string, { state?: "online" | "offline"; lastChanged?: string | number }>;
+type AviatorRound = { roundNumber?: number; roundId?: string; status?: "flying" | "crashed"; crashAt?: number; nextRoundAt?: number };
 
 const adminPendingReminderKey = "admin-pending-review-key";
 
@@ -77,6 +80,8 @@ export default function AdminDashboard() {
   const [selectedUserId, setSelectedUserId] = useState("");
   const [newUserNotice, setNewUserNotice] = useState(false);
   const [presence, setPresence] = useState<UserPresence>({});
+  const [isAdministrator, setIsAdministrator] = useState(false);
+  const [aviatorRound, setAviatorRound] = useState<AviatorRound | null>(null);
 
   const usersWithPresence = useMemo(
     () =>
@@ -144,6 +149,14 @@ export default function AdminDashboard() {
   }, []);
 
   useEffect(() => {
+    if (!isAdministrator) return;
+
+    return onValue(ref(realtimeDatabase, "aviator/round"), (snapshot) => {
+      setAviatorRound(snapshot.exists() ? (snapshot.val() as AviatorRound) : null);
+    });
+  }, [isAdministrator]);
+
+  useEffect(() => {
     const pending = requests.filter((request) => request.status === "Pending");
 
     if (pending.length === 0) {
@@ -178,7 +191,13 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     return onAuthStateChanged(firebaseAuth, async (user) => {
-      if (!user) return;
+      if (!user) {
+        setIsAdministrator(false);
+        setAviatorRound(null);
+        setTab("overview");
+        return;
+      }
+      setIsAdministrator(user.email?.toLowerCase() === "kartz8706@gmail.com");
       const profile = await fetchUserProfile<{ name?: string } | null>(
         user.uid,
         null
@@ -212,6 +231,7 @@ export default function AdminDashboard() {
         </div>
         <nav className="space-y-2">
           <AdminNavButton active={tab === "overview"} onClick={() => setTab("overview")} icon={<LayoutDashboard size={18} />}>Overview</AdminNavButton>
+          {isAdministrator && <AdminNavButton active={tab === "games"} onClick={() => setTab("games")} icon={<Gamepad2 size={18} />}>Games</AdminNavButton>}
           <AdminNavButton active={tab === "users"} onClick={() => { setTab("users"); setNewUserNotice(false); }} icon={<Users size={18} />}>Users {newUserNotice && <UnreadDot />}</AdminNavButton>
           <AdminNavButton active={tab === "investments"} onClick={() => setTab("investments")} icon={<TrendingUp size={18} />}>Investments</AdminNavButton>
           <AdminNavButton active={tab === "trackers"} onClick={() => setTab("trackers")} icon={<Timer size={18} />}>Payout trackers</AdminNavButton>
@@ -232,6 +252,7 @@ export default function AdminDashboard() {
 
           <div className="mb-6 grid grid-cols-2 gap-3 md:hidden">
             <AdminNavButton active={tab === "overview"} onClick={() => setTab("overview")} icon={<LayoutDashboard size={17} />}>Overview</AdminNavButton>
+            {isAdministrator && <AdminNavButton active={tab === "games"} onClick={() => setTab("games")} icon={<Gamepad2 size={17} />}>Games</AdminNavButton>}
             <AdminNavButton active={tab === "users"} onClick={() => { setTab("users"); setNewUserNotice(false); }} icon={<Users size={17} />}>Users {newUserNotice && <UnreadDot />}</AdminNavButton>
             <AdminNavButton active={tab === "investments"} onClick={() => setTab("investments")} icon={<TrendingUp size={17} />}>Investments</AdminNavButton>
             <AdminNavButton active={tab === "trackers"} onClick={() => setTab("trackers")} icon={<Timer size={17} />}>Payout trackers</AdminNavButton>
@@ -242,6 +263,7 @@ export default function AdminDashboard() {
           </div>
 
           {tab === "overview" && <Overview users={usersWithPresence} investments={investments} requests={requests} setTab={setTab} />}
+          {tab === "games" && isAdministrator && <AviatorRoundsPanel round={aviatorRound} />}
           {tab === "users" && <UsersPanel users={usersWithPresence} loading={usersLoading} error={usersError} />}
           {tab === "investments" && <InvestmentsPanel investments={investments} />}
           {tab === "trackers" && <InvestmentTrackingPanel users={usersWithPresence} />}
@@ -260,6 +282,41 @@ export default function AdminDashboard() {
         </div>
       </main>
     </div>
+  );
+}
+
+function AviatorRoundsPanel({ round }: { round: AviatorRound | null }) {
+  const currentRoundNumber = Number(round?.roundNumber ?? 0);
+  const nextRoundNumber = currentRoundNumber + 1;
+  const nextCrashPoint = getAviatorCrashPoint(nextRoundNumber);
+
+  return (
+    <section className="surface rounded-2xl p-5">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#43e58c]">Aviator rounds</p>
+          <h2 className="mt-2 text-xl font-semibold">Shared round status</h2>
+        </div>
+        <Link href="/games/aviator/live" className="rounded-lg border border-[#1c3026] px-3 py-2 text-sm text-gray-300 hover:bg-[#102019] hover:text-white">
+          Open live game
+        </Link>
+      </div>
+      <div className="mt-5 grid gap-3 sm:grid-cols-2">
+        <div className="rounded-xl border border-[#1c3026] bg-[#0c1813] p-4">
+          <p className="text-xs uppercase tracking-[0.14em] text-gray-500">Current round</p>
+          <p className="mt-2 text-lg font-semibold">{round ? `#${currentRoundNumber}` : "Waiting for first round"}</p>
+          <p className="mt-1 text-sm text-gray-400">
+            {round?.status === "flying" ? "Flying" : round?.status === "crashed" ? "Crashed" : "Not started"}
+            {round && round.crashAt !== undefined ? ` · stopped at ${Number(round.crashAt).toFixed(2)}x` : ""}
+          </p>
+        </div>
+        <div className="rounded-xl border border-[#43e58c]/25 bg-[#43e58c]/[0.06] p-4">
+          <p className="text-xs uppercase tracking-[0.14em] text-gray-500">Next round</p>
+          <p className="mt-2 text-lg font-semibold">#{nextRoundNumber}</p>
+          <p className="mt-1 text-2xl font-black text-[#43e58c]">{nextCrashPoint.toFixed(2)}x</p>
+        </div>
+      </div>
+    </section>
   );
 }
 

@@ -499,6 +499,89 @@ select:focus-visible {
   transform: scaleX(1);
 }
 
+.aviator-flight-scene::before,
+.aviator-flight-scene::after {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  content: "";
+  pointer-events: none;
+  opacity: 0;
+}
+
+.aviator-flight-scene[data-state="flying"]::before {
+  opacity: 0.55;
+  background: repeating-linear-gradient(115deg, transparent 0 54px, rgba(226, 235, 255, 0.16) 55px 57px, transparent 58px 116px);
+  background-size: 240% 100%;
+  animation: aviator-speed-lines 1.4s linear infinite;
+}
+
+.aviator-flight-scene[data-state="crashed"]::after {
+  background: radial-gradient(ellipse at 74% 30%, rgba(255, 66, 66, 0.38), transparent 48%);
+  animation: aviator-crash-flash 650ms ease-out both;
+}
+
+.aviator-plane {
+  z-index: 20;
+  transition: left 180ms ease-out, bottom 180ms ease-out;
+  animation: aviator-plane-bob 900ms ease-in-out infinite;
+}
+
+.aviator-plane-crashed {
+  animation: aviator-plane-exit 850ms cubic-bezier(0.2, 0.65, 0.35, 1) forwards;
+}
+
+.aviator-crash-label {
+  animation: aviator-crash-label 420ms ease-out both;
+}
+
+.aviator-next-round {
+  animation: aviator-countdown-enter 450ms ease-out both;
+}
+
+@keyframes aviator-speed-lines {
+  from { background-position: 100% 0; }
+  to { background-position: 0 0; }
+}
+
+@keyframes aviator-plane-bob {
+  0%, 100% { transform: translateY(0) rotate(-4deg); }
+  50% { transform: translateY(-5px) rotate(2deg); }
+}
+
+@keyframes aviator-plane-exit {
+  0% { opacity: 1; transform: translate(0, 0) rotate(2deg) scale(1); }
+  100% { opacity: 0; transform: translate(52px, -104px) rotate(24deg) scale(0.72); }
+}
+
+@keyframes aviator-crash-flash {
+  0% { opacity: 0; }
+  22% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+@keyframes aviator-crash-label {
+  0% { opacity: 0; transform: scale(0.82); }
+  65% { opacity: 1; transform: scale(1.08); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+@keyframes aviator-countdown-enter {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aviator-flight-scene[data-state="flying"]::before,
+  .aviator-plane,
+  .aviator-plane-crashed,
+  .aviator-crash-label,
+  .aviator-next-round {
+    animation-duration: 0.01ms;
+    animation-iteration-count: 1;
+  }
+}
+
 .dashboard-preview {
   box-shadow:
     0 28px 80px rgba(0, 0, 0, 0.32),
