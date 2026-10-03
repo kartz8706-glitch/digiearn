@@ -47,6 +47,7 @@ const initialMultiplierHistory: number[] = [];
 
 type AviatorBet = {
   id: string;
+  tradeId?: string;
   roundId: string;
   userId: string;
   displayName: string;
@@ -59,6 +60,7 @@ type AviatorBet = {
 };
 
 type BetCardState = {
+  tradeId: string;
   stake: number;
   pendingStake: number;
   lockedStake: number;
@@ -71,6 +73,7 @@ type BetCardState = {
 };
 
 const createBetCard = (): BetCardState => ({
+  tradeId: "",
   stake: 100,
   pendingStake: 0,
   lockedStake: 0,
@@ -199,9 +202,15 @@ export default function AviatorGamePage({ params }: { params: Promise<{ mode: st
       const recordsById = value && typeof value === "object"
         ? value as Record<string, Omit<AviatorBet, "id">>
         : {};
-      const records = Object.entries(recordsById)
-        .map(([id, record]) => ({ id, ...record }))
-        .filter((record) => Number.isFinite(record.stake) && record.roundId && record.userId)
+      const recordsByTrade = new Map<string, AviatorBet>();
+      for (const [id, record] of Object.entries(recordsById)) {
+        const betRecord = { id, ...record };
+        if (!Number.isFinite(betRecord.stake) || !betRecord.roundId || !betRecord.userId) continue;
+        const tradeKey = betRecord.tradeId || id;
+        const existing = recordsByTrade.get(tradeKey);
+        if (!existing || betRecord.placedAt > existing.placedAt) recordsByTrade.set(tradeKey, betRecord);
+      }
+      const records = [...recordsByTrade.values()]
         .sort((first, second) => second.placedAt - first.placedAt);
       setFirebaseBets(records);
     });
@@ -349,8 +358,9 @@ export default function AviatorGamePage({ params }: { params: Promise<{ mode: st
       }
     }
 
+    const tradeId = crypto.randomUUID();
     setBetCards((current) => current.map((item, index) => index === cardIndex
-      ? { ...item, pendingStake: nextStake, hasCashedOut: false, cashOutValue: null }
+      ? { ...item, tradeId, pendingStake: nextStake, hasCashedOut: false, cashOutValue: null }
       : item));
     hasCashedOutRefs.current[cardIndex] = false;
     setCashOutValue(null);
@@ -383,9 +393,12 @@ export default function AviatorGamePage({ params }: { params: Promise<{ mode: st
             if (mode === "live") availableBalance -= card.pendingStake;
 
             if (mode === "live" && userId) {
-              const betKey = `${activeRoundId}_${userId}_${cardIndex + 1}`;
+              const tradeId = card.tradeId;
+              if (!tradeId) throw new Error("Missing trade ID");
+              const betKey = `${activeRoundId}_${userId}_${tradeId}`;
               const betRecordPath = `aviator/betRecords/${betKey}`;
               await set(ref(realtimeDatabase, betRecordPath), {
+                tradeId,
                 roundId: activeRoundId,
                 userId,
                 displayName: firebaseAuth.currentUser?.displayName ?? firebaseAuth.currentUser?.email?.split("@")[0] ?? userId.slice(0, 8),
