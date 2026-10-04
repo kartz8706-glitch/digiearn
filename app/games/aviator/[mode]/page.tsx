@@ -36,12 +36,11 @@ const crashSharedRound = (roundId: string) => runTransaction(ref(realtimeDatabas
 });
 
 const deriveMultiplierFromRound = (startedAt: number, crashAt: number) => {
-  const flightDurationMs = Math.max(1800, (crashAt - 1) * 1150);
+  const flightDurationMs = Math.max(4000, (crashAt - 1) * 3000);
   const elapsed = Date.now() - startedAt;
   return Math.min(Number((1 + ((elapsed / flightDurationMs) * (crashAt - 1))).toFixed(2)), crashAt);
 };
 
-const tabs = ["All Bets", "Previous", "Top"] as const;
 const quickStakeValues = [100, 500, 1000, 5000, 10000];
 const initialMultiplierHistory: number[] = [];
 
@@ -87,7 +86,6 @@ const createBetCard = (): BetCardState => ({
 
 export default function AviatorGamePage({ params }: { params: Promise<{ mode: string }> }) {
   const [mode, setMode] = useState("live");
-  const [activeTab, setActiveTab] = useState<(typeof tabs)[number]>("All Bets");
   const [multiplier, setMultiplier] = useState(0.0);
   const [historyExpanded, setHistoryExpanded] = useState(false);
   const [crashAt, setCrashAt] = useState(1.85);
@@ -474,8 +472,6 @@ export default function AviatorGamePage({ params }: { params: Promise<{ mode: st
     setBetCards((current) => current.map((card, index) => index === cardIndex ? { ...card, stake: safeStake } : card));
   };
 
-  const planeX = clamp(12 + (multiplier / Math.max(crashAt, 1.01)) * 74, 12, 86);
-  const planeY = clamp(12 + ((multiplier - 1) / Math.max(crashAt - 1, 0.1)) * 48, 12, 60);
   const displayMode = mode === "live" ? "Live" : "Demo";
 
   const betSummary = useMemo(() => {
@@ -484,21 +480,6 @@ export default function AviatorGamePage({ params }: { params: Promise<{ mode: st
     if (status === "flying") return "Flight in motion";
     return "Flight in motion";
   }, [betCards, crashAt, multiplier, status]);
-
-  const visibleBets = useMemo(() => {
-    if (activeTab === "All Bets") {
-      return firebaseBets.filter((item) => item.roundId === roundId).slice(0, 30);
-    }
-
-    if (activeTab === "Previous") {
-      return firebaseBets.filter((item) => item.roundId !== roundId).slice(0, 30);
-    }
-
-    return firebaseBets
-      .filter((item) => item.status === "cashed_out")
-      .sort((first, second) => second.payout - first.payout)
-      .slice(0, 30);
-  }, [activeTab, firebaseBets, roundId]);
 
   const currentRoundTotal = firebaseBets
     .filter((item) => item.roundId === roundId)
@@ -562,47 +543,11 @@ export default function AviatorGamePage({ params }: { params: Promise<{ mode: st
               </button>
             </div>
 
-            <div className="mb-4 flex items-center gap-2 rounded-xl border border-[#3a2d4d] bg-[#201a27] p-1.5 text-sm text-[#c7bfd8]">
-              {tabs.map((tab) => (
-                <button
-                  key={tab}
-                  type="button"
-                  onClick={() => setActiveTab(tab)}
-                  className={`flex-1 rounded-lg px-3 py-2 transition ${activeTab === tab ? "bg-[#312b3c] font-medium text-white" : "text-[#c7bfd8]"}`}
-                >
-                  {tab}
-                </button>
-              ))}
-            </div>
-
             <div className="mb-3 flex items-center justify-between rounded-xl border border-[#352d41] bg-[#201b29] p-3 text-sm">
               <div className="flex items-center gap-2">
                 <span className="font-semibold text-[#e6e0ed]">{firebaseBets.filter((item) => item.roundId === roundId).length} Bets</span>
               </div>
               <span className="text-[#f0edf1]">{currentRoundTotal.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} UGX</span>
-            </div>
-
-            <div className="space-y-2">
-              {visibleBets.length === 0 ? (
-                <div className="rounded-xl border border-[#2f2a3b] bg-[#1d1924] px-3 py-6 text-center text-sm text-[#a9a1b4]">No bets in Firebase for this view yet.</div>
-              ) : visibleBets.map((row) => {
-                const name = row.displayName || row.userId.slice(0, 8);
-                const amount = row.status === "cashed_out" ? row.payout : row.stake;
-                const avatarColors = ["from-cyan-400 to-sky-500", "from-fuchsia-400 to-violet-500", "from-emerald-400 to-teal-500", "from-amber-400 to-yellow-500"];
-                const color = avatarColors[row.userId.charCodeAt(0) % avatarColors.length];
-
-                return (
-                  <div key={row.id} className="flex items-center justify-between rounded-xl border border-[#2f2a3b] bg-[#1d1924] px-3 py-2 text-sm">
-                    <div className="flex min-w-0 items-center gap-2">
-                      <span className={`inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-br ${color} text-[10px] font-bold text-white`}>
-                        {name.slice(0, 2).toUpperCase()}
-                      </span>
-                      <span className="truncate font-medium text-[#dfd8e8]">{name}</span>
-                    </div>
-                    <span className="ml-2 shrink-0 text-[#f1edf4]">{amount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                  </div>
-                );
-              })}
             </div>
 
             <div className="mt-6 flex items-center justify-between border-t border-[#312b3c] pt-4 text-xs text-[#b7aec7]">
@@ -613,18 +558,7 @@ export default function AviatorGamePage({ params }: { params: Promise<{ mode: st
 
           <section className="relative overflow-hidden bg-[#0d0b10]">
             <div className="flex items-center justify-between border-b border-[#312b3c] bg-[#15131b] px-4 py-2.5 text-sm text-[#d3cedd]">
-              <div className="flex items-center gap-3 text-[#a59bb2]">
-                {tabs.map((tab) => (
-                  <button
-                    key={tab}
-                    type="button"
-                    onClick={() => setActiveTab(tab)}
-                    className={activeTab === tab ? "text-[#d3cedd]" : "text-[#a59bb2]"}
-                  >
-                    {tab}
-                  </button>
-                ))}
-              </div>
+              <div className="text-xs font-semibold uppercase tracking-wide text-[#a59bb2]">Shared round</div>
               <div className="flex items-center gap-2">
                 <Trophy size={16} className="text-[#f9d257]" />
                 <span className="text-[#e9e2f0]">{cashOutValue ? `${cashOutValue.toFixed(2)} UGX` : "0.00 UGX"}</span>
@@ -663,20 +597,12 @@ export default function AviatorGamePage({ params }: { params: Promise<{ mode: st
               </div>
 
               <div className={`aviator-flight-scene relative overflow-hidden rounded-[18px] border border-[#312b3c] bg-[#0d0d12]`} data-state={status}>
-                <div className="pointer-events-none absolute inset-0 opacity-80" style={{ backgroundImage: 'repeating-linear-gradient(135deg, rgba(0,0,0,0.1) 0 12px, rgba(255,255,255,0.02) 12px 24px)', maskImage: 'linear-gradient(transparent, black 10%, black 90%, transparent)' }} />
                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.03),transparent_45%),linear-gradient(180deg,rgba(255,255,255,0.02),transparent)]" />
 
                 <div className="relative z-10 flex min-h-[430px] items-center justify-center">
                   <div className="relative h-[260px] w-full max-w-[760px]">
                     <div className="absolute inset-x-0 bottom-8 top-0" style={{ clipPath: "polygon(0 100%, 100% 100%, 100% 0, 0 0)" }}>
                       <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(0,0,0,0.2),rgba(255,255,255,0.02),rgba(0,0,0,0.2))]" />
-                    </div>
-
-                    <div
-                      className={`aviator-plane absolute flex h-8 w-8 items-center justify-center rounded-full border border-[#eaecff] bg-[#f4f5ff] text-[10px] font-bold text-[#111827] shadow-[0_0_22px_rgba(245,247,255,0.45)] ${status === "crashed" ? "aviator-plane-crashed" : ""}`}
-                      style={{ left: `${planeX}%`, bottom: `${planeY}%` }}
-                    >
-                      ✈
                     </div>
 
                     <div className="absolute inset-0 flex items-center justify-center text-center">

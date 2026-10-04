@@ -45,7 +45,7 @@ import ConversationPanel from "@/components/ConversationPanel";
 import InvestmentTracker from "@/components/InvestmentTracker";
 import type { Investment } from "@/lib/investmentStore";
 
-type AdminTab = "overview" | "games" | "users" | "investments" | "trackers" | "requests" | "history" | "referrals" | "messages";
+type AdminTab = "overview" | "users" | "investments" | "trackers" | "requests" | "history" | "referrals" | "messages";
 type UserPresence = Record<string, { state?: "online" | "offline"; lastChanged?: string | number }>;
 type AviatorRound = { roundNumber?: number; roundId?: string; status?: "flying" | "crashed"; crashAt?: number; nextRoundAt?: number };
 
@@ -231,7 +231,7 @@ export default function AdminDashboard() {
         </div>
         <nav className="space-y-2">
           <AdminNavButton active={tab === "overview"} onClick={() => setTab("overview")} icon={<LayoutDashboard size={18} />}>Overview</AdminNavButton>
-          {isAdministrator && <AdminNavButton active={tab === "games"} onClick={() => setTab("games")} icon={<Gamepad2 size={18} />}>Games</AdminNavButton>}
+          {isAdministrator && <Link href="/kate/games" className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm text-gray-400 transition hover:translate-x-1 hover:bg-[#102019] hover:text-white"><Gamepad2 size={18} />Games</Link>}
           <AdminNavButton active={tab === "users"} onClick={() => { setTab("users"); setNewUserNotice(false); }} icon={<Users size={18} />}>Users {newUserNotice && <UnreadDot />}</AdminNavButton>
           <AdminNavButton active={tab === "investments"} onClick={() => setTab("investments")} icon={<TrendingUp size={18} />}>Investments</AdminNavButton>
           <AdminNavButton active={tab === "trackers"} onClick={() => setTab("trackers")} icon={<Timer size={18} />}>Payout trackers</AdminNavButton>
@@ -252,7 +252,7 @@ export default function AdminDashboard() {
 
           <div className="mb-6 grid grid-cols-2 gap-3 md:hidden">
             <AdminNavButton active={tab === "overview"} onClick={() => setTab("overview")} icon={<LayoutDashboard size={17} />}>Overview</AdminNavButton>
-            {isAdministrator && <AdminNavButton active={tab === "games"} onClick={() => setTab("games")} icon={<Gamepad2 size={17} />}>Games</AdminNavButton>}
+            {isAdministrator && <Link href="/kate/games" className="flex items-center gap-3 rounded-xl px-4 py-3 text-sm text-gray-400 transition hover:bg-[#102019] hover:text-white"><Gamepad2 size={17} />Games</Link>}
             <AdminNavButton active={tab === "users"} onClick={() => { setTab("users"); setNewUserNotice(false); }} icon={<Users size={17} />}>Users {newUserNotice && <UnreadDot />}</AdminNavButton>
             <AdminNavButton active={tab === "investments"} onClick={() => setTab("investments")} icon={<TrendingUp size={17} />}>Investments</AdminNavButton>
             <AdminNavButton active={tab === "trackers"} onClick={() => setTab("trackers")} icon={<Timer size={17} />}>Payout trackers</AdminNavButton>
@@ -262,8 +262,7 @@ export default function AdminDashboard() {
             <AdminNavButton active={tab === "messages"} onClick={() => setTab("messages")} icon={<MessageCircle size={17} />}>Messages</AdminNavButton>
           </div>
 
-          {tab === "overview" && <Overview users={usersWithPresence} investments={investments} requests={requests} setTab={setTab} />}
-          {tab === "games" && isAdministrator && <AviatorRoundsPanel round={aviatorRound} />}
+          {tab === "overview" && <Overview users={usersWithPresence} investments={investments} requests={requests} setTab={setTab} isAdministrator={isAdministrator} aviatorRound={aviatorRound} />}
           {tab === "users" && <UsersPanel users={usersWithPresence} loading={usersLoading} error={usersError} />}
           {tab === "investments" && <InvestmentsPanel investments={investments} />}
           {tab === "trackers" && <InvestmentTrackingPanel users={usersWithPresence} />}
@@ -285,42 +284,7 @@ export default function AdminDashboard() {
   );
 }
 
-function AviatorRoundsPanel({ round }: { round: AviatorRound | null }) {
-  const currentRoundNumber = Number(round?.roundNumber ?? 0);
-  const nextRoundNumber = currentRoundNumber + 1;
-  const nextCrashPoint = getAviatorCrashPoint(nextRoundNumber);
-
-  return (
-    <section className="surface rounded-2xl p-5">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#43e58c]">Aviator rounds</p>
-          <h2 className="mt-2 text-xl font-semibold">Shared round status</h2>
-        </div>
-        <Link href="/games/aviator/live" className="rounded-lg border border-[#1c3026] px-3 py-2 text-sm text-gray-300 hover:bg-[#102019] hover:text-white">
-          Open live game
-        </Link>
-      </div>
-      <div className="mt-5 grid gap-3 sm:grid-cols-2">
-        <div className="rounded-xl border border-[#1c3026] bg-[#0c1813] p-4">
-          <p className="text-xs uppercase tracking-[0.14em] text-gray-500">Current round</p>
-          <p className="mt-2 text-lg font-semibold">{round ? `#${currentRoundNumber}` : "Waiting for first round"}</p>
-          <p className="mt-1 text-sm text-gray-400">
-            {round?.status === "flying" ? "Flying" : round?.status === "crashed" ? "Crashed" : "Not started"}
-            {round && round.crashAt !== undefined ? ` · stopped at ${Number(round.crashAt).toFixed(2)}x` : ""}
-          </p>
-        </div>
-        <div className="rounded-xl border border-[#43e58c]/25 bg-[#43e58c]/[0.06] p-4">
-          <p className="text-xs uppercase tracking-[0.14em] text-gray-500">Next round</p>
-          <p className="mt-2 text-lg font-semibold">#{nextRoundNumber}</p>
-          <p className="mt-1 text-2xl font-black text-[#43e58c]">{nextCrashPoint.toFixed(2)}x</p>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function Overview({ users, investments, requests, setTab }: { users: AdminUser[]; investments: AdminInvestment[]; requests: AdminRequest[]; setTab: (tab: AdminTab) => void }) {
+function Overview({ users, investments, requests, setTab, isAdministrator, aviatorRound }: { users: AdminUser[]; investments: AdminInvestment[]; requests: AdminRequest[]; setTab: (tab: AdminTab) => void; isAdministrator: boolean; aviatorRound: AviatorRound | null }) {
   const pending = requests.filter((request) => request.status === "Pending").length;
   const onlineUsers = users.filter((user) => user.online).length;
   const totalBalance = users.reduce((total, user) => total + user.balance, 0);
@@ -358,6 +322,18 @@ function Overview({ users, investments, requests, setTab }: { users: AdminUser[]
       <Metric title="Pending approvals" value={String(pending)} icon={<ShieldCheck size={20} />} />
       <Metric title="Referrals" value={String(referralSummary.total)} icon={<UserPlus size={20} />} />
     </div>
+    {isAdministrator && (
+      <Link href="/kate/games" className="mt-4 flex w-full flex-wrap items-center justify-between gap-3 rounded-xl border border-[#43e58c]/25 bg-[#43e58c]/[0.05] px-4 py-3 text-left transition hover:border-[#43e58c]/50 hover:bg-[#43e58c]/[0.08]">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#43e58c]">Next Aviator round</p>
+          <p className="mt-1 text-sm text-gray-300">Round #{Number(aviatorRound?.roundNumber ?? 0) + 1}</p>
+        </div>
+        <div className="flex items-center gap-3">
+          <span className="text-xl font-black text-[#43e58c]">{getAviatorCrashPoint(Number(aviatorRound?.roundNumber ?? 0) + 1).toFixed(2)}x</span>
+          <span className="text-xs font-semibold text-gray-400">Open Games</span>
+        </div>
+      </Link>
+    )}
     <div className="mt-6 grid gap-4 md:grid-cols-3">
       <ActionCard title="Add user" description="Create a user account with an active status." onClick={() => setTab("users")} icon={<UserPlus size={21} />} />
       <ActionCard title="Create investment" description="Publish a new lock period and multiplier." onClick={() => setTab("investments")} icon={<Plus size={21} />} />

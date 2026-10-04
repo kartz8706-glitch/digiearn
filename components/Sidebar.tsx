@@ -14,6 +14,7 @@ import {
   Settings,
   Gift,
   Gamepad2,
+  LineChart,
 } from "lucide-react";
 
 const userLinks = [
@@ -26,6 +27,11 @@ const userLinks = [
     name: "Games",
     href: "/games",
     icon: Gamepad2,
+  },
+  {
+    name: "Chart",
+    href: "/chart",
+    icon: LineChart,
   },
   {
     name: "Investments",
